@@ -9,11 +9,7 @@
 // don't think Deno does tree-shaking, so it might bloat our bundle...
 
 // TODO(*): Use deps.ts for imports
-import {
-  HTTPSOptions,
-  listenAndServe,
-  listenAndServeTLS,
-} from "https://deno.land/std@0.88.0/http/server.ts";
+import { listenAndServe } from "https://deno.land/std@0.88.0/http/server.ts";
 import type {
   Response,
   ServerRequest,
@@ -133,15 +129,29 @@ function serverLog(req: ServerRequest, res: Response): void {
   console.log(s);
 }
 
-console.log("This is a webserver");
 console.log(JSON.stringify(EMBED_HEADER, null, 4));
 
-const binary = Deno.openSync(Deno.execPath(), { read: true });
-binary.seekSync(EMBED_OFFSET, Deno.SeekMode.Start);
-// Print only the first 100 bytes instead of the 66000 bytes lol
-const buf = new Uint8Array(100); // EMBED_HEADER.files[0].size);
-binary.readSync(buf);
-Deno.stdout.writeSync(buf);
+// TODO(*): Implement this as serveFile() and store files in loadedFilesCache as
+// we load them from the binary...
+
+// const binary = Deno.openSync(Deno.execPath(), { read: true });
+// binary.seekSync(EMBED_OFFSET, Deno.SeekMode.Start);
+// // Print only the first 100 bytes instead of the 66000 bytes lol
+// const buf = new Uint8Array(100); // EMBED_HEADER.files[0].size);
+// binary.readSync(buf);
+// Deno.stdout.writeSync(buf);
+
 // Alt. `console.log(new TextDecoder().decode(buf))`
 // Not sure if using TextDecoder copies the string into heap memory? Alongside
 // the in-memory Uint8Array buffer. Not a huge deal.
+
+listenAndServe({
+  hostname: "0.0.0.0",
+  port: 8080,
+}, (req) => {
+  const res = serveDir();
+  req.respond(res);
+  serverLog(req, res);
+});
+
+console.log(`Starboard on http://0.0.0.0:8080/`);
