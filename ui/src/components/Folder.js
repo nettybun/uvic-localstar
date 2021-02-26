@@ -38,7 +38,7 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
                         }}
                         className={`${
                             isHover ? "bg-gray-500 bg-opacity-10" : ""
-                        } p-2  my-1 rounded-md h-auto transition-all`}
+                        } p-1  my-1 rounded-md h-auto transition-all`}
                         onMouseEnter={() =>
                             setCurrentHover(state => [id, ...state])
                         }
@@ -49,13 +49,13 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
                         }
                     >
                         <ContextMenuTrigger id={`folder-context-${id}`}>
-                            <div className="w-full cursor-pointer h-7  ">
+                            <div className="w-full cursor-pointer h-7 flex">
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     stroke="currentColor"
-                                    className={`h-5 inline-block transform transition-transform ${
+                                    className={`h-5 inline-block transform transition-transform flex-shrink-0 my-auto ${
                                         isOpen ? " rotate-90" : ""
                                     }`}
                                 >
@@ -72,7 +72,7 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     stroke="currentColor"
-                                    className="h-5 mx-3 inline-block align-middle"
+                                    className="h-5 ml-1 mr-2 inline-block flex-shrink-0 my-auto"
                                 >
                                     <path
                                         strokeLinecap="round"
@@ -81,13 +81,13 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
                                         d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
                                     />
                                 </svg>
-                                <div className="inline-block align-middle font-semibold ">
+                                <div className="inline-block flex-grow truncate  font-semibold my-auto">
                                     {name}
                                 </div>
                             </div>
                         </ContextMenuTrigger>
                         <div
-                            className={`px-2 transform transition-all  origin-top scale-y-0 h-0 opacity-0 ${
+                            className={`pl-4 transform transition-all  origin-top scale-y-0 h-0 opacity-0 ${
                                 isOpen ? "scale-y-100 h-auto opacity-100" : ""
                             }`}
                         >

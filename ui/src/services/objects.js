@@ -46,8 +46,9 @@ x`,
 };
 
 export const project = {
-    name: "firstProject",
+    name: "SENG499",
     authors: ["Dylan", "Michelle", "Grant"],
+    dateCreated: Date.now(),
     fileSystem: {
         name: "home",
         type: "folder",

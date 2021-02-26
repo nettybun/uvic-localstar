@@ -42,14 +42,14 @@ const File = ({ name, currentHover, id, setCurrentHover }) => {
                             state.filter(itemID => itemID !== id)
                         )
                     }
-                    className="w-full p-2 hover:bg-gray-500 hover:bg-opacity-10 my-1 rounded-md font-medium cursor-pointer transition-all"
+                    className="w-full py-2 px-1 hover:bg-gray-500 hover:bg-opacity-10 my-1 rounded-md flex cursor-pointer transition-all "
                 >
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
-                        className="h-5 mx-3 inline-block"
+                        className="h-5 ml-1 mr-2 inline-block flex-shrink-0"
                     >
                         <path
                             strokeLinecap="round"
@@ -57,8 +57,10 @@ const File = ({ name, currentHover, id, setCurrentHover }) => {
                             strokeWidth={2}
                             d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
                         />
-                    </svg>{" "}
-                    {name}
+                    </svg>
+                    <div className="inline-block align-middle font-medium flex-grow truncate">
+                        {name}
+                    </div>
                 </div>
             </ContextMenuTrigger>
 
@@ -66,9 +68,7 @@ const File = ({ name, currentHover, id, setCurrentHover }) => {
                 <div className="bg-white rounded-md p-1">
                     <MenuItem data={{ foo: "bar" }}>
                         <div
-                            onClick={() => {
-                                console.log("Opening", name);
-                            }}
+                            onClick={onClick}
                             className="rounded-md px-3 py-1 my-1 hover:bg-gray-200 cursor-pointer"
                         >
                             Open

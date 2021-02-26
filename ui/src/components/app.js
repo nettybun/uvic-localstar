@@ -12,10 +12,10 @@ const App = () => {
         <Provider store={store}>
             <div id="app">
                 <div className="flex h-screen">
-                    <div className="w-1/5 bg-gray-200">
+                    <div style={{ width: 250 }} className=" bg-gray-200">
                         <Sidebar />
                     </div>
-                    <div className="w-4/5 bg-gray-100">
+                    <div className="flex-grow bg-gray-100">
                         <Notebook />
                     </div>
                 </div>
