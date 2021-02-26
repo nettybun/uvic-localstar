@@ -106,18 +106,6 @@ let embedHeader: EmbedHeader;
       },
     );
   }
-  // const groupBy = <T>(arr: T[], grouperFn: (item: T) => string) =>
-  //   arr.reduce((acc, item) => {
-  //     const group = grouperFn(item);
-  //     (acc[group] = acc[group] || []).push(item);
-  //     return acc;
-  //   }, {} as Record<string, T[]>);
-  // const ext = groupBy(embedHeader.files, (x) => path.extname(x.path));
-  // Object.keys(ext).sort();
-  // Object.values(ext).forEach((arr) =>
-  //   arr.sort((a, b) => a.path.localeCompare(b.path))
-  // );
-  // console.log(ext);
 
   // March 2nd 1.8.0 https://github.com/denoland/deno/issues/1968#issuecomment-780503687
   // new Intl.Collator({ numeric: true, caseFirst: false });
