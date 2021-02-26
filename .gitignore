@@ -1,0 +1,11 @@
+# Frontend
+node_modules
+build
+*.log
+size-plugin.json
+
+# Temporary files used by build.ts
+localstar
+localstar-init
+compileTest
+compileTest.ts
