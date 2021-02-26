@@ -25,7 +25,7 @@ const TEST_COMPILE_PAYLOAD = 'console.log("📦");\n';
 const decoder = new TextDecoder();
 
 async function compileDeno(file: string, ...args: string[]) {
-  const cmd = ["deno", "compile", "--unstable", ...args, file];
+  const cmd = ["deno", "compile", "--unstable", "--lite", ...args, file];
   console.log(`$ ${cmd.join(" ")}`);
   const process = Deno.run({ cmd });
   const status = await process.status();
