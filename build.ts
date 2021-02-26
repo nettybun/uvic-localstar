@@ -14,9 +14,11 @@ import {
 
 import type { EmbedHeader } from "./embed.ts";
 
-assert(Deno.args[0] !== "", "Provide a folder to embed");
-
-const EMBED_DIR = Deno.args[0];
+const [EMBED_DIR] = Deno.args;
+if (!EMBED_DIR) {
+  console.log("Provide a directory like `./build.ts ./path/to/files`");
+  Deno.exit(1);
+}
 const EMBED_TS_MARKER = `// XXX: Everything below is replaced by build.ts\n`;
 const TEST_COMPILE_PAYLOAD = 'console.log("📦");\n';
 
