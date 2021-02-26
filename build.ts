@@ -60,6 +60,25 @@ function calculateBinaryLayout(binary: Deno.File) {
   };
 }
 
+function writeToEmbedTs(content: string) {
+  let embedTs = Deno.readTextFileSync("./embed.ts");
+  const replaceMarkerIndex = embedTs.lastIndexOf(EMBED_TS_MARKER);
+  assert(
+    replaceMarkerIndex !== -1,
+    `Couldn't find "${EMBED_TS_MARKER}" in embed.ts`,
+  );
+  embedTs = embedTs.slice(0, replaceMarkerIndex + EMBED_TS_MARKER.length - 1);
+
+  console.log(
+    "Writing to embed.ts",
+    content.length > 300
+      ? content.slice(0, Math.min(content.length, 300)) + "..."
+      : content,
+  );
+  embedTs = embedTs + content;
+  Deno.writeTextFileSync("./embed.ts", embedTs);
+}
+
 Deno.writeTextFileSync("compileTest.ts", TEST_COMPILE_PAYLOAD);
 await compileDeno("compileTest.ts");
 Deno.removeSync("compileTest.ts");
@@ -115,21 +134,11 @@ let embedHeader: EmbedHeader;
     return x === 0 ? a.path.localeCompare(b.path) : x;
   });
 
-  let embedTs = Deno.readTextFileSync("./embed.ts");
-  const replaceMarkerIndex = embedTs.lastIndexOf(EMBED_TS_MARKER);
-  assert(
-    replaceMarkerIndex !== -1,
-    `Couldn't find "${EMBED_TS_MARKER}" in embed.ts`,
-  );
-  embedTs = embedTs.slice(0, replaceMarkerIndex + EMBED_TS_MARKER.length - 1);
-
   const embedHeaderJSON = JSON.stringify(embedHeader, null, 2);
-  const embedTsPatch = `
+  writeToEmbedTs(`
 export const EMBED_OFFSET = ${embedOffset};
-export const EMBED_HEADER = ${embedHeaderJSON} as EmbedHeader;`;
-  console.log("Writing to embed.ts", embedTsPatch.slice(0, 300) + "...");
-  embedTs = embedTs + embedTsPatch;
-  Deno.writeTextFileSync("./embed.ts", embedTs);
+export const EMBED_HEADER = ${embedHeaderJSON} as EmbedHeader;
+`);
 }
 
 // Write the new Deno binary, load the files, nudge the offsets
@@ -142,6 +151,11 @@ export const EMBED_HEADER = ${embedHeaderJSON} as EmbedHeader;`;
     "--output",
     initName,
   );
+  // Immediately replace it so we don't commit the changes by accident
+  writeToEmbedTs(`
+export const EMBED_OFFSET = 0;
+export const EMBED_HEADER = {} as EmbedHeader;
+`);
   const lsInitBinary = Deno.openSync(initName, { read: true, write: true });
   const lsInitLayout = calculateBinaryLayout(lsInitBinary);
 
