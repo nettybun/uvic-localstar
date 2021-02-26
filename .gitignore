@@ -1,0 +1,5 @@
+# Temporary files used by build.ts
+localstar
+localstar-init
+compileTest
+compileTest.ts
