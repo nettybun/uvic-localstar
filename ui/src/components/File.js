@@ -65,7 +65,7 @@ const File = ({ name, currentHover, id, setCurrentHover }) => {
             </ContextMenuTrigger>
 
             <ContextMenu id={`folder-context-${id}`}>
-                <div className="bg-white rounded-md p-1">
+                <div className="bg-white rounded-md p-1 shadow">
                     <MenuItem data={{ foo: "bar" }}>
                         <div
                             onClick={onClick}
