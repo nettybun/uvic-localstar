@@ -13,6 +13,13 @@ import type { Response, ServerRequest } from "./deps.ts";
 
 import { EMBED_HEADER, EMBED_OFFSET } from "./embed.ts";
 
+interface ServerArgs {
+  _: string[];
+  host?: string;
+  port?: number;
+  cors?: boolean;
+}
+
 // TODO(*): Why aren't images here? Do browsers figure it out for us?
 const MEDIA_TYPES: Record<string, string> = {
   ".md": "text/markdown",
@@ -32,32 +39,21 @@ const MEDIA_TYPES: Record<string, string> = {
   ".svg": "image/svg+xml",
 };
 
-// Never unloaded
+// Posix-only path library for loading embed files within Deno itself
+const posix = path.posix;
+
+// Files that are in memory (never unloaded)
 const loadedFilesCache = new Map<string, string>();
 
-// For conversion to Uint8Array of UTF-8
+// Uint8Array of UTF-8 string
 const encoder = new TextEncoder();
 
-/** Returns the content-type based on the extension of a path. */
+const serverArgs = parse(Deno.args) as ServerArgs;
+const target = posix.resolve(serverArgs._[0] ?? "");
+
+// Returns the content-type based on the extension of a path
 function contentType(filepath: string): string | undefined {
   return MEDIA_TYPES[path.extname(filepath)];
-}
-
-function fileLenToString(len: number): string {
-  const multiplier = 1024;
-  let base = 1;
-  const suffix = ["B", "K", "M", "G", "T"];
-  let suffixIndex = 0;
-
-  while (base * multiplier < len) {
-    if (suffixIndex >= suffix.length - 1) {
-      break;
-    }
-    base *= multiplier;
-    suffixIndex++;
-  }
-
-  return `${(len / base).toFixed(2)}${suffix[suffixIndex]}`;
 }
 
 // In file_server.ts they pass in the HTTP request to know that its safe to
@@ -75,29 +71,23 @@ async function serveFile(filePath: string): Promise<Response> {
   }
   return {
     status: 200,
-    body: file,
     headers,
+    body: file,
   };
 }
 
-// There's no default redirect to index.html
 function serveDir(): Response {
-  // TODO(Dylan/Michelle): HTML? Let Preact do the human file sizing?
-  const dir = EMBED_HEADER.files.map((fileListing) => {
-    return { ...fileListing, sizeHuman: fileLenToString(fileListing.size) };
-  });
-  const body = encoder.encode(JSON.stringify(dir, null, 2));
+  const body = encoder.encode(JSON.stringify(EMBED_HEADER.files, null, 2));
   const headers = new Headers();
   headers.set("content-type", "application/json");
-  const res = {
+  return {
     status: 200,
-    body,
     headers,
+    body,
   };
-  return res;
 }
 
-function serveFallback(req: ServerRequest, e: Error): Promise<Response> {
+function serveFallback(e: Error): Promise<Response> {
   if (e instanceof URIError) {
     return Promise.resolve({
       status: 400,
@@ -123,10 +113,44 @@ function serverLog(req: ServerRequest, res: Response): void {
   console.log(s);
 }
 
-console.log(JSON.stringify(EMBED_HEADER, null, 4));
+function setCORS(res: Response): void {
+  if (!res.headers) {
+    res.headers = new Headers();
+  }
+  res.headers.append("access-control-allow-origin", "*");
+  res.headers.append(
+    "access-control-allow-headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Range",
+  );
+}
 
-// TODO(*): Implement this as serveFile() and store files in loadedFilesCache as
-// we load them from the binary...
+// https://github.com/denoland/deno_std/commit/a7558b92ff774e81a8ae1cc485f7b28073e7dc94
+// Important to prevent malicious path traversal. Specifically for reading from
+// the OS rather than Deno embeds
+function normalizeURL(url: string): string {
+  let normalized = url;
+  try {
+    normalized = decodeURI(normalized);
+  } catch (e) {
+    if (!(e instanceof URIError)) {
+      throw e;
+    }
+  }
+  try {
+    // Allowed per https://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html
+    const absoluteURI = new URL(normalized);
+    normalized = absoluteURI.pathname;
+  } catch (e) { // Wasn't an absoluteURI
+    if (!(e instanceof TypeError)) {
+      throw e;
+    }
+  }
+  if (normalized[0] !== "/") {
+    throw new URIError("The request URI is malformed.");
+  }
+  // TODO:Safe to drop everything after "?" in the URL?
+  return normalized;
+}
 
 // const binary = Deno.openSync(Deno.execPath(), { read: true });
 // binary.seekSync(EMBED_OFFSET, Deno.SeekMode.Start);
@@ -135,17 +159,52 @@ console.log(JSON.stringify(EMBED_HEADER, null, 4));
 // binary.readSync(buf);
 // Deno.stdout.writeSync(buf);
 
-// Alt. `console.log(new TextDecoder().decode(buf))`
-// Not sure if using TextDecoder copies the string into heap memory? Alongside
-// the in-memory Uint8Array buffer. Not a huge deal.
+const host = serverArgs.host ?? "0.0.0.0";
+const port = serverArgs.port ?? 4507;
+const cors = serverArgs.cors;
 
-listenAndServe({
-  hostname: "0.0.0.0",
-  port: 8080,
-}, (req) => {
-  const res = serveDir();
-  req.respond(res);
-  serverLog(req, res);
+const server = serve({
+  hostname: host,
+  port,
 });
+console.log(`Starboard on http://${host}:${port}/`);
 
-console.log(`Starboard on http://0.0.0.0:8080/`);
+for await (const request of server) {
+  let response: Response;
+  try {
+    const url = normalizeURL(request.url);
+    // API? (Including OS FS calls)
+    // XXX: Middleware stack
+
+    // If not an API request then assume a (posix) path for an embed
+    const normalizedPathURL = posix.normalize(url);
+    const startOfParams = normalizedPathURL.indexOf("?");
+    let normalizedPath = startOfParams > -1
+      ? normalizedPathURL.slice(0, startOfParams)
+      : normalizedPathURL;
+
+    // There are no directories (TODO: There are though, for the OS FS)
+    if (normalizedPath.endsWith("/")) {
+      normalizedPath = "index.html";
+    }
+    let fsPath = posix.join(target, normalizedPath);
+    // Security against changing the root? Doesn't apply to embed though...
+    if (fsPath.indexOf(target) !== 0) {
+      fsPath = target;
+    }
+    response = await serveFile(fsPath);
+  } catch (e) {
+    console.error(e.message);
+    response = await serveFallback(e);
+  } finally {
+    if (cors) {
+      setCORS(response!);
+    }
+    serverLog(request, response!);
+    try {
+      await request.respond(response!);
+    } catch (e) {
+      console.error(e.message);
+    }
+  }
+}
