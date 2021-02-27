@@ -1,3 +1,8 @@
+// TODO: The more I look at this I think it should be in the embed binary and
+// _not_ in TS... Similar to Deno's trailer, put a u64 (or two) directly above
+// the JS bundle (I'll likely need another magic trailer to ensure there is an
+// embed section) then JSON parse etc...
+
 export type EmbedHeader = {
   // TODO(*): Version ourselves
   versions: {
