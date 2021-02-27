@@ -8,14 +8,8 @@
 // to support mounting a real FS directory available via a REST API or WS. I
 // don't think Deno does tree-shaking, so it might bloat our bundle...
 
-// TODO(*): Use deps.ts for imports
-import { listenAndServe } from "https://deno.land/std@0.88.0/http/server.ts";
-import type {
-  Response,
-  ServerRequest,
-} from "https://deno.land/std@0.88.0/http/server.ts";
-// Posix/Linux no Win32 path support
-import * as path from "https://deno.land/std@0.88.0/path/posix.ts";
+import { parse, path, serve } from "./deps.ts";
+import type { Response, ServerRequest } from "./deps.ts";
 
 import { EMBED_HEADER, EMBED_OFFSET } from "./embed.ts";
 
