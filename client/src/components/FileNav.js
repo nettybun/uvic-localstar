@@ -16,11 +16,13 @@ const FileNav = () => {
     }, [fileSystemLoaded, fileSystem]);
 
     return (
-        <Folder
-            {...fileSystem}
-            currentHover={currentHover}
-            setCurrentHover={setCurrentHover}
-        />
+        <div>
+            <Folder
+                {...fileSystem}
+                currentHover={currentHover}
+                setCurrentHover={setCurrentHover}
+            />
+        </div>
     );
 };
 
