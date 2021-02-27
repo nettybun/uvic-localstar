@@ -1,10 +1,10 @@
-# Frontend
+# Client
 node_modules
 build
 *.log
 size-plugin.json
 
-# Temporary files used by build.ts
+# Server
 localstar
 localstar-init
 compileTest
