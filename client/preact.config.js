@@ -15,9 +15,9 @@ module.exports = (config, env, helpers) => {
         plugins.unshift(require("tailwindcss"));
 
         // Add PurgeCSS only in production.
-        // if (env.production) {
-        //     plugins.push(purgecss);
-        // }
+        if (env.production) {
+            process.env.NODE_ENV = "production";
+        }
     });
     return config;
 };

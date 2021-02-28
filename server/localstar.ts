@@ -17,6 +17,7 @@ interface ServerArgs {
 }
 
 // TODO(*): Why aren't images here? Do browsers figure it out for us?
+//Dylan: for images and fonts the browser is pretty good at figuring it out. some stuff needs to be explicit tho.
 const MEDIA_TYPES: Record<string, string> = {
   ".md": "text/plain",
   ".html": "text/html",
