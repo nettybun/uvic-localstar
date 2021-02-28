@@ -71,19 +71,26 @@ const Header = () => {
                         </div>
                         <div className="flex-1 flex items-center justify-center sm:items-stretch sm:justify-start">
                             <div className="flex-shrink-0 flex items-center">
-                                {/* <img
-                                    className="block lg:hidden h-8 w-auto"
-                                    src="https://tailwindui.com/img/logos/workflow-mark-indigo-500.svg"
-                                    alt="Workflow"
-                                />
-                                <img
-                                    className="hidden lg:block h-8 w-auto"
-                                    src="https://tailwindui.com/img/logos/workflow-logo-indigo-500-mark-white-text.svg"
-                                    alt="Workflow"
-                                /> */}
-                                Icon
+                                <svg
+                                    className="inline-block fill-current h-8 w-auto text-white"
+                                    version="1.1"
+                                    viewBox="0 0 31.954 33.005"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                >
+                                    <g transform="translate(-35.386 -36.649)">
+                                        <path
+                                            transform="scale(.26458)"
+                                            d="m190.22 142.29a58.783 58.783 0 0 0-52.697 58.4 58.783 58.783 0 0 0 58.783 58.783 58.783 58.783 0 0 0 54.43-36.678 63.532 63.532 0 0 1-62.902-63.5 63.532 63.532 0 0 1 2.3867-17.006z"
+                                        ></path>
+                                    </g>
+                                </svg>
+                                <div className="text-2xl localTitle font-bold text-white ml-2 tracking-wide	">
+                                    Local
+                                </div>
                             </div>
-                            <div className="hidden sm:block sm:ml-6">
+                            <div className="border-l mx-6 py-2 opacity-20" />
+                            <div className="hidden sm:block ">
                                 <div className="flex space-x-4">
                                     <a
                                         href="#"
