@@ -6,6 +6,9 @@ size-plugin.json
 
 # Server
 localstar
+localstar.exe
 localstar-init
+localstar-init.exe
 compileTest
+compileTest.exe
 compileTest.ts

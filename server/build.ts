@@ -58,7 +58,7 @@ function calculateBinaryLayout(binary: Deno.File) {
 }
 
 function writeToEmbedTs(content: string) {
-  let embedTs = Deno.readTextFileSync("./embed.ts");
+  let embedTs = Deno.readTextFileSync("embed.ts");
   const replaceMarkerIndex = embedTs.lastIndexOf(EMBED_TS_MARKER);
   assert(
     replaceMarkerIndex !== -1,
@@ -73,7 +73,7 @@ function writeToEmbedTs(content: string) {
       : content,
   );
   embedTs = embedTs + content;
-  Deno.writeTextFileSync("./embed.ts", embedTs);
+  Deno.writeTextFileSync("embed.ts", embedTs);
 }
 
 Deno.writeTextFileSync("compileTest.ts", TEST_COMPILE_PAYLOAD);

@@ -46,7 +46,7 @@ const embedContent = new Map<string, Uint8Array>();
 }
 
 // This file is never closed. The OS closes it on process exit
-const denoBinary = await Deno.open("./localstar", { read: true });
+const denoBinary = await Deno.open(Deno.execPath(), { read: true });
 
 // Uint8Array of UTF-8 string
 const encoder = new TextEncoder();
