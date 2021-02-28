@@ -4,10 +4,6 @@
 // within the binary rather than the local filesystem. There are no directories,
 // only files which may include "/".
 
-// TODO(Michelle): std's server has onyl one export, serveFile. Could import it
-// to support mounting a real FS directory available via a REST API or WS. I
-// don't think Deno does tree-shaking, so it might bloat our bundle...
-
 import { parse, path, serve } from "./deps.ts";
 import type { Response, ServerRequest } from "./deps.ts";
 
@@ -22,28 +18,35 @@ interface ServerArgs {
 
 // TODO(*): Why aren't images here? Do browsers figure it out for us?
 const MEDIA_TYPES: Record<string, string> = {
-  ".md": "text/markdown",
+  ".md": "text/plain",
   ".html": "text/html",
-  ".htm": "text/html",
   ".json": "application/json",
   ".map": "application/json",
   ".txt": "text/plain",
-  ".ts": "text/typescript",
-  ".tsx": "text/tsx",
   ".js": "application/javascript",
-  ".jsx": "text/jsx",
   ".gz": "application/gzip",
   ".css": "text/css",
   ".wasm": "application/wasm",
   ".mjs": "application/javascript",
   ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
 };
 
 // Posix-only path library for loading embed files within Deno itself
 const posix = path.posix;
 
-// Files that are in memory (never unloaded)
-const loadedFilesCache = new Map<string, string>();
+const embedLookup = new Map<string, { offset: number; size: number }>();
+const embedContent = new Map<string, Uint8Array>();
+{
+  let offset = EMBED_OFFSET - 1;
+  for (const entry of EMBED_HEADER.files) {
+    embedLookup.set(entry.path, { offset, size: entry.size });
+    offset += entry.size;
+  }
+}
+
+// This file is never closed. The OS closes it on process exit
+const denoBinary = await Deno.open("./localstar", { read: true });
 
 // Uint8Array of UTF-8 string
 const encoder = new TextEncoder();
@@ -52,13 +55,15 @@ const serverArgs = parse(Deno.args) as ServerArgs;
 const target = posix.resolve(serverArgs._[0] ?? "");
 
 // Returns the content-type based on the extension of a path
-function contentType(filepath: string): string | undefined {
-  return MEDIA_TYPES[path.extname(filepath)];
+// Browsers will default to "application/octet-stream" if its binary
+function contentType(filepath: string): string {
+  return MEDIA_TYPES[path.extname(filepath)] || "text/plain";
 }
 
-// In file_server.ts they pass in the HTTP request to know that its safe to
-// close the file (Deno.File). We're not using real files.
-async function serveFile(filePath: string): Promise<Response> {
+async function serveFile(
+  req: ServerRequest,
+  filePath: string,
+): Promise<Response> {
   const [file, fileInfo] = await Promise.all([
     Deno.open(filePath),
     Deno.stat(filePath),
@@ -66,44 +71,92 @@ async function serveFile(filePath: string): Promise<Response> {
   const headers = new Headers();
   headers.set("content-length", fileInfo.size.toString());
   const contentTypeValue = contentType(filePath);
-  if (contentTypeValue) {
-    headers.set("content-type", contentTypeValue);
-  }
+  headers.set("content-type", contentTypeValue);
+  req.done.then(() => {
+    file.close();
+  });
   return {
     status: 200,
-    headers,
     body: file,
+    headers,
   };
 }
 
-function serveDir(): Response {
-  const body = encoder.encode(JSON.stringify(EMBED_HEADER.files, null, 2));
+async function serveDir(dirPath: string): Promise<Response> {
+  const entries: Array<{ name: string; size: number | "" }> = [];
+  for await (const entry of Deno.readDir(dirPath)) {
+    const filePath = posix.join(dirPath, entry.name);
+    const fileInfo = await Deno.stat(filePath);
+    entries.push({
+      name: `${entry.name}${entry.isDirectory ? "/" : ""}`,
+      size: entry.isFile ? (fileInfo.size ?? 0) : "",
+    });
+  }
+  return serveJSON(entries);
+}
+
+async function serveEmbedFile(filePath: string): Promise<Response> {
+  const meta = embedLookup.get(filePath);
+  if (!meta) {
+    throw new Deno.errors.NotFound();
+  }
+  let file = embedContent.get(filePath);
+  if (!file) {
+    file = new Uint8Array(meta.size);
+    await denoBinary.seek(meta.offset, Deno.SeekMode.Start);
+    // XXX: Whattt why is it this hard to read files in Deno/Go...
+    let n = 0;
+    while (n < meta.size) {
+      const nread = await denoBinary.read(file.subarray(n));
+      if (nread === null) break;
+      n += nread;
+    }
+    embedContent.set(filePath, file);
+  }
+  // Assumes all files (collectively) can be held in memory
+  const headers = new Headers();
+  headers.set("content-length", meta.size.toString());
+  const contentTypeValue = contentType(filePath);
+  headers.set("content-type", contentTypeValue);
+  return {
+    status: 200,
+    body: file,
+    headers,
+  };
+}
+
+function serveJSON(toStringify: unknown): Response {
+  const body = encoder.encode(JSON.stringify(toStringify, null, 2));
   const headers = new Headers();
   headers.set("content-type", "application/json");
   return {
     status: 200,
-    headers,
     body,
+    headers,
   };
 }
 
-function serveFallback(e: Error): Promise<Response> {
+function serveFallback(e: Error): Response {
+  let status: number;
+  let message: string;
   if (e instanceof URIError) {
-    return Promise.resolve({
-      status: 400,
-      body: encoder.encode("Bad Request"),
-    });
+    status = 400;
+    message = "Bad Request";
   } else if (e instanceof Deno.errors.NotFound) {
-    return Promise.resolve({
-      status: 404,
-      body: encoder.encode("Not Found"),
-    });
+    status = 404;
+    message = "Not Found";
   } else {
-    return Promise.resolve({
-      status: 500,
-      body: encoder.encode("Internal server error"),
-    });
+    status = 500;
+    message = "Internal server error";
   }
+  const headers = new Headers();
+  headers.set("content-type", "text/plain");
+  const stack = e.stack?.replaceAll(/\ns+/g, "  ");
+  return {
+    status,
+    body: encoder.encode(`${message}\n\nError: ${stack}`),
+    headers,
+  };
 }
 
 function serverLog(req: ServerRequest, res: Response): void {
@@ -148,16 +201,10 @@ function normalizeURL(url: string): string {
   if (normalized[0] !== "/") {
     throw new URIError("The request URI is malformed.");
   }
-  // TODO:Safe to drop everything after "?" in the URL?
-  return normalized;
+  normalized = posix.normalize(normalized);
+  const startOfParams = normalized.indexOf("?");
+  return startOfParams > -1 ? normalized.slice(0, startOfParams) : normalized;
 }
-
-// const binary = Deno.openSync(Deno.execPath(), { read: true });
-// binary.seekSync(EMBED_OFFSET, Deno.SeekMode.Start);
-// // Print only the first 100 bytes instead of the 66000 bytes lol
-// const buf = new Uint8Array(100); // EMBED_HEADER.files[0].size);
-// binary.readSync(buf);
-// Deno.stdout.writeSync(buf);
 
 const host = serverArgs.host ?? "0.0.0.0";
 const port = serverArgs.port ?? 4507;
@@ -172,39 +219,49 @@ console.log(`Starboard on http://${host}:${port}/`);
 for await (const request of server) {
   let response: Response;
   try {
-    const url = normalizeURL(request.url);
-    // API? (Including OS FS calls)
-    // XXX: Middleware stack
-
-    // If not an API request then assume a (posix) path for an embed
-    const normalizedPathURL = posix.normalize(url);
-    const startOfParams = normalizedPathURL.indexOf("?");
-    let normalizedPath = startOfParams > -1
-      ? normalizedPathURL.slice(0, startOfParams)
-      : normalizedPathURL;
-
-    // There are no directories (TODO: There are though, for the OS FS)
-    if (normalizedPath.endsWith("/")) {
-      normalizedPath = "index.html";
+    let { url } = request;
+    if (/^\/version\/?$/.test(url)) {
+      response = serveJSON(EMBED_HEADER.versions);
+      continue;
     }
-    let fsPath = posix.join(target, normalizedPath);
-    // Security against changing the root? Doesn't apply to embed though...
-    if (fsPath.indexOf(target) !== 0) {
-      fsPath = target;
+    if (/^\/list\/?$/.test(url)) {
+      response = serveJSON(EMBED_HEADER.files);
+      continue;
     }
-    response = await serveFile(fsPath);
+    if (/^\/fs\/.*/.test(url)) {
+      const urlPath = normalizeURL(url.slice("/fs".length));
+      let fsPath = posix.join(target, urlPath);
+      // Security check in case path joining changes beyond the "target" root
+      if (fsPath.indexOf(target) !== 0) {
+        fsPath = target;
+      }
+      const fileInfo = await Deno.stat(fsPath);
+      response = await (fileInfo.isDirectory
+        ? serveDir(fsPath)
+        : serveFile(request, fsPath));
+      continue;
+    }
+    // Else try an embed. The "/" -> "index.html" only works for embeds
+    if (url === "/") {
+      url = "/index.html";
+    }
+    // TODO(Grant): What even is a directory for an embed...
+    if (url[0] === "/") {
+      url = url.slice(1);
+    }
+    response = await serveEmbedFile(url);
   } catch (e) {
     console.error(e.message);
-    response = await serveFallback(e);
+    response = serveFallback(e);
   } finally {
-    if (cors) {
-      setCORS(response!);
-    }
-    serverLog(request, response!);
     try {
+      if (cors) setCORS(response!);
+      serverLog(request, response!);
       await request.respond(response!);
     } catch (e) {
       console.error(e.message);
     }
   }
 }
+
+console.log("Bye");
