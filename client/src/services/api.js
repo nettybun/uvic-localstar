@@ -24,3 +24,7 @@ export const updateFileContent = (file, content) => {
 export const deleteFile = id => {
     return id;
 };
+
+export const updateProject = name => {
+    return name;
+};

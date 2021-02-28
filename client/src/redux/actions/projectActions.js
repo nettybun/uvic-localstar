@@ -1,5 +1,5 @@
-import { READ_PROJECT_SUCCESS } from "./actionTypes";
-import { readProject } from "../../services/api";
+import { READ_PROJECT_SUCCESS, UPDATE_PROJECT_SUCCESS } from "./actionTypes";
+import { readProject, updateProject } from "../../services/api";
 
 const readProjectSuccess = project => {
     return {
@@ -8,11 +8,27 @@ const readProjectSuccess = project => {
     };
 };
 
+const updateProjectSuccess = name => {
+    return {
+        type: UPDATE_PROJECT_SUCCESS,
+        name,
+    };
+};
+
 export const readProjectDispatch = () => {
     return dispatch => {
         let project = readProject();
         setTimeout(() => {
             dispatch(readProjectSuccess(project));
+        }, Math.random() * 25);
+    };
+};
+
+export const updateProjectDispatch = name => {
+    return dispatch => {
+        let newName = updateProject(name);
+        setTimeout(() => {
+            dispatch(updateProjectSuccess(newName));
         }, Math.random() * 25);
     };
 };

@@ -2,6 +2,7 @@ import {
     CREATE_FILE_SUCCESS,
     DELETE_FILE_SUCCESS,
     READ_PROJECT_SUCCESS,
+    UPDATE_PROJECT_SUCCESS,
 } from "../actions/actionTypes";
 import initialState from "./initialState";
 
@@ -84,6 +85,11 @@ const projectReducer = (state = initialState.project, action) => {
                 fileSystem: newFileSystem,
             };
         }
+        case UPDATE_PROJECT_SUCCESS:
+            return {
+                ...state,
+                name: action.name,
+            };
         default:
             return state;
     }

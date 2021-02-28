@@ -22,3 +22,7 @@ body {
 #app {
     height: 100%;
 }
+
+.localTitle {
+    font-family: "Inter", sans-serif;
+}

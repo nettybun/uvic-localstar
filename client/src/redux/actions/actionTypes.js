@@ -4,6 +4,7 @@ export const API_CALL_ERROR = "API_CALL_ERROR";
 
 //Projects
 export const READ_PROJECT_SUCCESS = "READ_PROJECT_SUCCESS";
+export const UPDATE_PROJECT_SUCCESS = "UPDATE_PROJECT_SUCCESS";
 
 export const SELECT_FILE = "SELECT_FILE";
 
