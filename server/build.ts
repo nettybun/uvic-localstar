@@ -7,7 +7,7 @@
 // TODO(*): Build multiple Windows/Mac/Linux via --target and --output
 
 import { path } from "./deps.ts";
-import { assert, assertStrictEquals } from "./deps.ts";
+import { assert, assertStrictEquals} from "./deps.ts";
 
 import type { EmbedHeader } from "./embed.ts";
 
@@ -16,7 +16,7 @@ if (!EMBED_DIR) {
   console.log("Provide a directory like `./build.ts ./path/to/files`");
   Deno.exit(1);
 }
-const EMBED_TS_MARKER = `// XXX: Everything below is replaced by build.ts\n`;
+const EMBED_TS_MARKER = `// XXX: Everything below is replaced by build.ts`;
 const TEST_COMPILE_PAYLOAD = 'console.log("📦");\n';
 
 const decoder = new TextDecoder();
@@ -64,7 +64,7 @@ function writeToEmbedTs(content: string) {
     replaceMarkerIndex !== -1,
     `Couldn't find "${EMBED_TS_MARKER}" in embed.ts`,
   );
-  embedTs = embedTs.slice(0, replaceMarkerIndex + EMBED_TS_MARKER.length - 1);
+  embedTs = embedTs.slice(0, replaceMarkerIndex + EMBED_TS_MARKER.length );
 
   console.log(
     "Writing to embed.ts",
@@ -74,6 +74,11 @@ function writeToEmbedTs(content: string) {
   );
   embedTs = embedTs + content;
   Deno.writeTextFileSync("embed.ts", embedTs);
+}
+
+function getSystemFileName(initName: string){
+ if(Deno.build.os === "windows") return `${initName}.exe`
+ else return initName
 }
 
 Deno.writeTextFileSync("compileTest.ts", TEST_COMPILE_PAYLOAD);
@@ -86,7 +91,8 @@ let embedHeader: EmbedHeader;
 
 // Use a test binary to find the size of Deno itself
 {
-  const testBinary = Deno.openSync("compileTest", { read: true, write: true });
+  let compileTestFileName =  getSystemFileName("compileTest")//cant find this file on windows as it is emitted as compileTest on unix and compileTest.exe on windows
+  const testBinary = Deno.openSync(compileTestFileName, { read: true, write: true }); 
   const testLayout = calculateBinaryLayout(testBinary);
   console.log("Layout for compileTest:", testLayout);
 
@@ -140,6 +146,7 @@ export const EMBED_HEADER = ${embedHeaderJSON} as EmbedHeader;
 
 // Write the new Deno binary, load the files, nudge the offsets
 {
+
   const initName = "localstar-init";
   await compileDeno(
     "localstar.ts",
@@ -153,14 +160,16 @@ export const EMBED_HEADER = ${embedHeaderJSON} as EmbedHeader;
 export const EMBED_OFFSET = 0;
 export const EMBED_HEADER = {} as EmbedHeader;
 `);
-  const lsInitBinary = Deno.openSync(initName, { read: true, write: true });
+  const emittedInitFileName = getSystemFileName(initName); 
+  const lsInitBinary = Deno.openSync(emittedInitFileName, { read: true, write: true });
   const lsInitLayout = calculateBinaryLayout(lsInitBinary);
 
-  console.log(`Layout for ${initName}:`, lsInitLayout);
+  console.log(`Layout for ${emittedInitFileName}:`, lsInitLayout);
   // TODO(Grant): Is it "better" to Deno.copy rather than have Rust copyFile?
-  Deno.copyFileSync(initName, "localstar");
-  Deno.truncateSync("localstar", denoSize);
-  const lsBinary = Deno.openSync("localstar", { read: true, write: true });
+  const buildFileName = getSystemFileName("localstar")
+  Deno.copyFileSync(emittedInitFileName, buildFileName);
+  Deno.truncateSync(buildFileName, denoSize);
+  const lsBinary = Deno.openSync(buildFileName, { read: true, write: true });
   lsBinary.seekSync(0, Deno.SeekMode.End);
 
   let embedPayloadSize = 0;
@@ -184,6 +193,7 @@ export const EMBED_HEADER = {} as EmbedHeader;
   const bufFrom = new Uint8Array(100);
   const bufTo = new Uint8Array(100);
   // TODO(Grant): Can I use Deno.copy() to write? Would it stop at 100 bytes?
+  // Dylan: Deno copy def coms with a third options param where u could add something like {bufSize: 100}
   lsInitBinary.seekSync(lsInitLayout.bundleOffset, Deno.SeekMode.Start);
   lsInitBinary.readSync(bufFrom);
   console.log("End:", lsBinary.seekSync(0, Deno.SeekMode.End));
@@ -216,5 +226,5 @@ export const EMBED_HEADER = {} as EmbedHeader;
   // Done
   lsBinary.close();
   lsInitBinary.close();
-  Deno.removeSync(initName);
+  Deno.removeSync(emittedInitFileName);
 }
