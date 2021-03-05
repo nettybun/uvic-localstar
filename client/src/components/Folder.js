@@ -1,13 +1,16 @@
 import { useEffect, useState } from "preact/hooks";
 import File from "./File";
 import { ContextMenu, ContextMenuTrigger, MenuItem } from "preact-context-menu";
-import { createFileDispatch } from "../redux/actions/filesActions";
 import { useDispatch } from "react-redux";
+import CreateFileModal from "./CreateFileModal";
+import { createPortal } from "preact/compat";
 
 const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
     const [isHover, setIsHover] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
     const dispatch = useDispatch();
+    const [showCreateFileModal, setShowCreateFileModal] = useState(false);
+    const container = document.getElementById("modals");
 
     useEffect(() => {
         if (currentHover.length > 0) {
@@ -22,8 +25,7 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
     }, [currentHover, id]);
 
     const onCreate = () => {
-        console.log("here");
-        dispatch(createFileDispatch("newFile37", id));
+        setShowCreateFileModal(true);
     };
 
     return (
@@ -141,6 +143,14 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
                             </MenuItem>
                         </div>
                     </ContextMenu>
+                    {createPortal(
+                        <CreateFileModal
+                            showModal={showCreateFileModal}
+                            setShowModal={setShowCreateFileModal}
+                            id={id}
+                        />,
+                        container
+                    )}
                 </>
             )}
         </>

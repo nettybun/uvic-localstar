@@ -21,7 +21,7 @@ const Modal = ({ show, children }) => {
     return (
         <div className={!display ? "hidden" : "block"}>
             <div
-                className={`h-screen transition-colors w-screen absolute top-0 left-0 bg-black ${
+                className={`h-screen transition-colors w-screen fixed top-0 left-0 bg-black ${
                     visible ? "bg-opacity-40" : "bg-opacity-0"
                 } `}
             >

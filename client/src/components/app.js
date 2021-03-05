@@ -24,6 +24,7 @@ const App = () => {
                     </div>
                 </div>
             </div>
+            <div id="modals"></div>
         </Provider>
     );
 };
