@@ -9,7 +9,11 @@ import { createPortal } from "preact/compat";
 const File = ({ file, currentHover, setCurrentHover }) => {
     const dispatch = useDispatch();
     const [showRenameFileModal, setShowRenameFileModal] = useState(false);
-    const container = document.getElementById("modals");
+    const [container, setContainer] = useState(null);
+
+    useEffect(() => {
+        setContainer(document.getElementById("modals"));
+    }, []);
 
     const onClick = () => {
         dispatch({ type: SELECT_FILE, fileName: `${file.id}` });
@@ -98,13 +102,17 @@ const File = ({ file, currentHover, setCurrentHover }) => {
                     </MenuItem>
                 </div>
             </ContextMenu>
-            {createPortal(
-                <RenameFileModal
-                    showModal={showRenameFileModal}
-                    setShowModal={setShowRenameFileModal}
-                    file={file}
-                />,
-                container
+            {container && (
+                <>
+                    {createPortal(
+                        <RenameFileModal
+                            showModal={showRenameFileModal}
+                            setShowModal={setShowRenameFileModal}
+                            file={file}
+                        />,
+                        container
+                    )}
+                </>
             )}
         </>
     );
