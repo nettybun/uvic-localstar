@@ -17,8 +17,32 @@ export const createFile = name => {
     };
 };
 
+export const createFolder = name => {
+    return {
+        id: Date.now(),
+        type: "folder",
+        name,
+        content: [],
+    };
+};
+
+export const updateFolderName = (folder, name) => {
+    return {
+        ...folder,
+        name,
+    };
+};
+
+export const deleteFolder = id => {
+    return id;
+};
+
 export const updateFileContent = (file, content) => {
     return { ...file, content };
+};
+
+export const updateFileName = (file, name) => {
+    return { ...file, name };
 };
 
 export const deleteFile = id => {

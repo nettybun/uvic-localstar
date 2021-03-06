@@ -1,7 +1,7 @@
 export default {
     project: {
         name: "",
-        fileSystem: {},
+        fileSystem: [],
         authors: [],
     },
     apiCallsInProgress: 0,

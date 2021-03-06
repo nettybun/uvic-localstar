@@ -1,7 +1,11 @@
 import {
     CREATE_FILE_SUCCESS,
+    CREATE_FOLDER_SUCCESS,
     DELETE_FILE_SUCCESS,
+    DELETE_FOLDER_SUCCESS,
     READ_PROJECT_SUCCESS,
+    UPDATE_FILE_SUCCESS,
+    UPDATE_FOLDER_SUCCESS,
     UPDATE_PROJECT_SUCCESS,
 } from "../actions/actionTypes";
 import initialState from "./initialState";
@@ -10,8 +14,9 @@ const projectReducer = (state = initialState.project, action) => {
     switch (action.type) {
         case READ_PROJECT_SUCCESS:
             return action.project;
+        case DELETE_FOLDER_SUCCESS:
         case DELETE_FILE_SUCCESS: {
-            let newFileSystem = { ...state.fileSystem };
+            let newFileSystem = state.fileSystem;
             const deleteFileFromFilesystem = (fileSystem, id) => {
                 return fileSystem
                     .filter(item => item.id !== id)
@@ -26,59 +31,35 @@ const projectReducer = (state = initialState.project, action) => {
                     });
             };
 
-            newFileSystem = {
-                ...newFileSystem,
-                content: deleteFileFromFilesystem(
-                    newFileSystem.content,
-                    action.id
-                ),
-            };
-
             return {
                 ...state,
-                fileSystem: newFileSystem,
+                fileSystem: deleteFileFromFilesystem(newFileSystem, action.id),
             };
         }
+        case CREATE_FOLDER_SUCCESS:
         case CREATE_FILE_SUCCESS: {
-            console.log("here");
             let newFileSystem = state.fileSystem;
 
-            const addFileToFileSystem = (fileSystem, file, parentID) => {
+            const addFileToFileSystem = fileSystem => {
                 return fileSystem.map(item => {
-                    console.log(item, parentID);
                     if (item.type === "file") return item;
-                    else if (item.id === parentID) {
-                        console.log("found folder");
+                    else if (item.id === action.parentID) {
                         return {
                             ...item,
-                            content: [...item.content, file],
+                            content: [...item.content, action.item],
                         };
                     } else {
                         return {
                             ...item,
-                            content: addFileToFileSystem(
-                                item.content,
-                                file,
-                                parentID
-                            ),
+                            content: addFileToFileSystem(item.content),
                         };
                     }
                 });
             };
-            if (state.fileSystem.id === action.parentID) {
-                newFileSystem = {
-                    ...newFileSystem,
-                    content: [...newFileSystem.content, action.file],
-                };
+            if (action.parentID === null) {
+                newFileSystem = [...newFileSystem, action.item];
             } else {
-                newFileSystem = {
-                    ...newFileSystem,
-                    content: addFileToFileSystem(
-                        newFileSystem.content,
-                        action.file,
-                        action.parentID
-                    ),
-                };
+                newFileSystem = addFileToFileSystem(newFileSystem);
             }
             return {
                 ...state,
@@ -90,6 +71,55 @@ const projectReducer = (state = initialState.project, action) => {
                 ...state,
                 name: action.name,
             };
+        case UPDATE_FILE_SUCCESS: {
+            let newFileSystem = { ...state.fileSystem };
+            const updateFilesystem = fileSystem => {
+                return fileSystem.map(item => {
+                    if (item.type === "file") {
+                        if (item.id === action.file.id) {
+                            return { ...item, name: action.file.name };
+                        }
+                        return item;
+                    }
+                    return {
+                        ...item,
+                        content: updateFilesystem(item.content),
+                    };
+                });
+            };
+
+            return {
+                ...state,
+                fileSystem: updateFilesystem(newFileSystem),
+            };
+        }
+        case UPDATE_FOLDER_SUCCESS: {
+            let newFileSystem = { ...state.fileSystem };
+            const updateFilesystem = fileSystem => {
+                return fileSystem.map(item => {
+                    if (item.type === "file") {
+                        return item;
+                    }
+                    if (item.id === action.folder.id) {
+                        return {
+                            ...item,
+                            name: action.folder.name,
+                            content: updateFilesystem(item.content),
+                        };
+                    }
+                    return {
+                        ...item,
+                        content: updateFilesystem(item.content),
+                    };
+                });
+            };
+
+            return {
+                ...state,
+                fileSystem: updateFilesystem(newFileSystem),
+            };
+        }
+
         default:
             return state;
     }

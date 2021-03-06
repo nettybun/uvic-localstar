@@ -12,10 +12,10 @@ const Sidebar = () => {
     }, []);
 
     return (
-        <div className="p-2 ">
+        <div className="p-2 h-full">
             <div
                 // onClick={() => setCounter(state => state + 1)}
-                className="text-left w-full outline-none"
+                className="text-left h-full w-full outline-none flex flex-col"
             >
                 <ProjectInfo />
                 <FileNav />

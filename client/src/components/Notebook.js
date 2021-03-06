@@ -3,7 +3,7 @@ import { useDispatch, useSelector, shallowEqual } from "react-redux";
 import IframeResizer from "iframe-resizer-react";
 import {
     readFileDispatch,
-    updateFileDispatch,
+    updateFileContentDispatch,
 } from "../redux/actions/filesActions";
 
 const Notebook = () => {
@@ -61,7 +61,10 @@ const Notebook = () => {
             // the entire content is sent to the parent website.
         } else if (messageData.message.type === "NOTEBOOK_CONTENT_UPDATE") {
             dispatch(
-                updateFileDispatch(fileRef.current, messageData.message.data)
+                updateFileContentDispatch(
+                    fileRef.current,
+                    messageData.message.data
+                )
             );
 
             //     // This signal is sent when a save shortcut (e.g. cmd+s on mac) is pressed.

@@ -1,16 +1,31 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import File from "./File";
 import { ContextMenu, ContextMenuTrigger, MenuItem } from "preact-context-menu";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import CreateFileModal from "./CreateFileModal";
 import { createPortal } from "preact/compat";
+import { makeSelectFolders, makeSelectFiles } from "../services/selectors";
+import CreateFolderModal from "./CreateFolderModal";
+import RenameFolderModal from "./RenameFolderModal";
+import { deleteFolderDispatch } from "../redux/actions/projectActions";
 
 const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
     const [isHover, setIsHover] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
     const dispatch = useDispatch();
     const [showCreateFileModal, setShowCreateFileModal] = useState(false);
-    const container = document.getElementById("modals");
+    const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
+    const [showUpdateFolderModal, setShowUpdateFolderModal] = useState(false);
+    const [container, setContainer] = useState(null);
+
+    const selectFiles = useMemo(makeSelectFiles, []);
+    const selectFolders = useMemo(makeSelectFolders, []);
+    const folders = useSelector(state => selectFolders(state, content ?? []));
+    const files = useSelector(state => selectFiles(state, content ?? []));
+
+    useEffect(() => {
+        setContainer(document.getElementById("modals"));
+    }, []);
 
     useEffect(() => {
         if (currentHover.length > 0) {
@@ -24,13 +39,11 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
         }
     }, [currentHover, id]);
 
-    const onCreate = () => {
-        setShowCreateFileModal(true);
-    };
+    const onCreate = () => {};
 
     return (
         <>
-            {id && (
+            {
                 <>
                     <div
                         onClick={() => {
@@ -93,7 +106,7 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
                                 isOpen ? "scale-y-100 h-auto opacity-100" : ""
                             }`}
                         >
-                            {content.map(item => {
+                            {/* {content.map(item => {
                                 if (item.type === "file") {
                                     return (
                                         <File
@@ -111,7 +124,22 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
                                         setCurrentHover={setCurrentHover}
                                     />
                                 );
-                            })}
+                            })} */}
+                            {folders.map(item => (
+                                <Folder
+                                    {...item}
+                                    currentHover={currentHover}
+                                    setCurrentHover={setCurrentHover}
+                                />
+                            ))}
+                            {files.map(item => (
+                                <File
+                                    currentHover={currentHover}
+                                    setCurrentHover={setCurrentHover}
+                                    file={item}
+                                    parentID={id}
+                                />
+                            ))}
                         </div>
                     </div>
 
@@ -119,7 +147,7 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
                         <div className="bg-white rounded-md p-1 shadow">
                             <MenuItem data={{ foo: "bar" }}>
                                 <div
-                                    onClick={onCreate}
+                                    onClick={() => setShowCreateFileModal(true)}
                                     className="rounded-md px-3 py-1 hover:bg-gray-200 cursor-pointer"
                                 >
                                     Create File
@@ -127,7 +155,19 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
                             </MenuItem>
                             <MenuItem data={{ foo: "bar" }}>
                                 <div
-                                    onClick={() => {}}
+                                    onClick={() =>
+                                        setShowCreateFolderModal(true)
+                                    }
+                                    className="rounded-md px-3 py-1 hover:bg-gray-200 cursor-pointer"
+                                >
+                                    Create Folder
+                                </div>
+                            </MenuItem>
+                            <MenuItem data={{ foo: "bar" }}>
+                                <div
+                                    onClick={() =>
+                                        dispatch(deleteFolderDispatch(id))
+                                    }
                                     className="rounded-md px-3 py-1 my-1 hover:bg-gray-200 cursor-pointer"
                                 >
                                     Delete
@@ -135,7 +175,9 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
                             </MenuItem>
                             <MenuItem data={{ foo: "bar" }}>
                                 <div
-                                    onClick={() => {}}
+                                    onClick={() =>
+                                        setShowUpdateFolderModal(true)
+                                    }
                                     className="rounded-md px-3 py-1 hover:bg-gray-200 cursor-pointer"
                                 >
                                     Rename
@@ -143,16 +185,41 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
                             </MenuItem>
                         </div>
                     </ContextMenu>
-                    {createPortal(
-                        <CreateFileModal
-                            showModal={showCreateFileModal}
-                            setShowModal={setShowCreateFileModal}
-                            id={id}
-                        />,
-                        container
+                    {container && (
+                        <>
+                            {createPortal(
+                                <CreateFileModal
+                                    showModal={showCreateFileModal}
+                                    setShowModal={setShowCreateFileModal}
+                                    id={id}
+                                />,
+                                container
+                            )}
+                            {createPortal(
+                                <CreateFolderModal
+                                    showModal={showCreateFolderModal}
+                                    setShowModal={setShowCreateFolderModal}
+                                    id={id}
+                                />,
+                                container
+                            )}
+                            {createPortal(
+                                <RenameFolderModal
+                                    showModal={showUpdateFolderModal}
+                                    setShowModal={setShowUpdateFolderModal}
+                                    folder={{
+                                        name,
+                                        content,
+                                        id,
+                                        type: "folder",
+                                    }}
+                                />,
+                                container
+                            )}
+                        </>
                     )}
                 </>
-            )}
+            }
         </>
     );
 };

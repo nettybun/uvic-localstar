@@ -9,6 +9,7 @@ import {
     deleteFile,
     readFile,
     updateFileContent,
+    updateFileName,
 } from "../../services/api";
 
 const readFileSucess = file => {
@@ -16,7 +17,7 @@ const readFileSucess = file => {
 };
 
 const createFileSucess = (file, parentID) => {
-    return { type: CREATE_FILE_SUCCESS, file, parentID };
+    return { type: CREATE_FILE_SUCCESS, item: file, parentID };
 };
 
 const updateFileSucess = file => {
@@ -45,9 +46,18 @@ export const readFileDispatch = id => {
     };
 };
 
-export const updateFileDispatch = (file, content) => {
+export const updateFileContentDispatch = (file, content) => {
     return dispatch => {
         const newFile = updateFileContent(file, content);
+        setTimeout(() => {
+            dispatch(updateFileSucess(newFile));
+        }, Math.random() * 25);
+    };
+};
+
+export const updateFileNameDispatch = (file, name) => {
+    return dispatch => {
+        const newFile = updateFileName(file, name);
         setTimeout(() => {
             dispatch(updateFileSucess(newFile));
         }, Math.random() * 25);

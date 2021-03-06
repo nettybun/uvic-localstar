@@ -11,7 +11,7 @@ const filesReducer = (state = initialState.files, action) => {
         case CREATE_FILE_SUCCESS:
             return {
                 ...state,
-                [action.file.id]: action.file,
+                [action.item.id]: action.item,
             };
         case READ_FILE_SUCCESS:
             return {

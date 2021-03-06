@@ -3,23 +3,27 @@ import { useDispatch } from "react-redux";
 import { ContextMenu, ContextMenuTrigger, MenuItem } from "preact-context-menu";
 import { SELECT_FILE } from "../redux/actions/actionTypes";
 import { deleteFileDispatch } from "../redux/actions/filesActions";
+import RenameFileModal from "./RenameFileModal";
+import { createPortal } from "preact/compat";
 
-const File = ({ name, currentHover, id, setCurrentHover }) => {
+const File = ({ file, currentHover, setCurrentHover }) => {
     const dispatch = useDispatch();
+    const [showRenameFileModal, setShowRenameFileModal] = useState(false);
+    const container = document.getElementById("modals");
 
     const onClick = () => {
-        dispatch({ type: SELECT_FILE, fileName: `${id}` });
+        dispatch({ type: SELECT_FILE, fileName: `${file.id}` });
     };
 
     const onDelete = () => {
-        dispatch(deleteFileDispatch(id));
+        dispatch(deleteFileDispatch(file.id));
     };
 
     const [, setIsHover] = useState(false);
 
     useEffect(() => {
         if (currentHover.length > 0) {
-            if (currentHover[0] === id) {
+            if (currentHover[0] === file.id) {
                 setIsHover(true);
             } else {
                 setIsHover(false);
@@ -27,19 +31,19 @@ const File = ({ name, currentHover, id, setCurrentHover }) => {
         } else {
             setIsHover(false);
         }
-    }, [currentHover, id]);
+    }, [currentHover, file.id]);
 
     return (
         <>
-            <ContextMenuTrigger id={`folder-context-${id}`}>
+            <ContextMenuTrigger id={`folder-context-${file.id}`}>
                 <div
                     onClick={onClick}
                     onMouseEnter={() =>
-                        setCurrentHover(state => [id, ...state])
+                        setCurrentHover(state => [file.id, ...state])
                     }
                     onMouseLeave={() =>
                         setCurrentHover(state =>
-                            state.filter(itemID => itemID !== id)
+                            state.filter(itemID => itemID !== file.id)
                         )
                     }
                     className="w-full py-2 px-1 hover:bg-gray-500 hover:bg-opacity-10 my-1 rounded-md flex cursor-pointer transition-all "
@@ -59,12 +63,12 @@ const File = ({ name, currentHover, id, setCurrentHover }) => {
                         />
                     </svg>
                     <div className="inline-block align-middle font-medium flex-grow truncate">
-                        {name}
+                        {file.name}
                     </div>
                 </div>
             </ContextMenuTrigger>
 
-            <ContextMenu id={`folder-context-${id}`}>
+            <ContextMenu id={`folder-context-${file.id}`}>
                 <div className="bg-white rounded-md p-1 shadow">
                     <MenuItem data={{ foo: "bar" }}>
                         <div
@@ -77,7 +81,7 @@ const File = ({ name, currentHover, id, setCurrentHover }) => {
                     <MenuItem data={{ foo: "bar" }}>
                         <div
                             onClick={() => {
-                                console.log("Renaming", name);
+                                setShowRenameFileModal(true);
                             }}
                             className="rounded-md px-3 py-1 hover:bg-gray-200 cursor-pointer"
                         >
@@ -94,6 +98,14 @@ const File = ({ name, currentHover, id, setCurrentHover }) => {
                     </MenuItem>
                 </div>
             </ContextMenu>
+            {createPortal(
+                <RenameFileModal
+                    showModal={showRenameFileModal}
+                    setShowModal={setShowRenameFileModal}
+                    file={file}
+                />,
+                container
+            )}
         </>
     );
 };

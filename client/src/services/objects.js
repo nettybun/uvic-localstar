@@ -49,33 +49,35 @@ export const project = {
     name: "SENG499",
     authors: ["Dylan", "Michelle", "Grant"],
     dateCreated: Date.now(),
-    fileSystem: {
-        name: "home",
-        type: "folder",
-        id: 4,
-        content: [
-            {
-                id: 0,
-                name: "file1",
-                type: "file",
-            },
-            {
-                id: 1,
-                name: "file2",
-                type: "file",
-            },
-            {
-                name: "work",
-                type: "folder",
-                id: 2,
-                content: [
-                    {
-                        id: 3,
-                        name: "workfile1",
-                        type: "file",
-                    },
-                ],
-            },
-        ],
-    },
+    fileSystem: [
+        {
+            name: "home",
+            type: "folder",
+            id: 4,
+            content: [
+                {
+                    id: 0,
+                    name: "file1",
+                    type: "file",
+                },
+                {
+                    id: 1,
+                    name: "file2",
+                    type: "file",
+                },
+                {
+                    name: "work",
+                    type: "folder",
+                    id: 2,
+                    content: [
+                        {
+                            id: 3,
+                            name: "workfile1",
+                            type: "file",
+                        },
+                    ],
+                },
+            ],
+        },
+    ],
 };
