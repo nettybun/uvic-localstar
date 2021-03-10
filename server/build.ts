@@ -6,8 +6,11 @@
 
 // TODO(*): Build multiple Windows/Mac/Linux via --target and --output
 
-import { path } from "./deps.ts";
-import { assert, assertStrictEquals } from "./deps.ts";
+import * as path from "https://deno.land/std/path/mod.ts";
+import {
+  assert,
+  assertStrictEquals,
+} from "https://deno.land/std/testing/asserts.ts";
 
 import type { EmbedHeader } from "./embed.ts";
 

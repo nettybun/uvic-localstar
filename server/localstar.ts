@@ -3,9 +3,15 @@
 // Adapted from https://deno.land/std/http/file_server.ts which reads files from
 // within the binary rather than the local filesystem. There are no directories,
 // only files which may include "/".
+import * as path from "https://deno.land/std/path/mod.ts";
+import * as fs from "https://deno.land/std/fs/mod.ts";
+import { parse } from "https://deno.land/std/flags/mod.ts";
+import { serve } from "https://deno.land/std/http/server.ts";
 
-import { parse, path, serve } from "./deps.ts";
-import type { Response, ServerRequest } from "./deps.ts";
+import type {
+  Response,
+  ServerRequest,
+} from "https://deno.land/std/http/server.ts";
 
 import { EMBED_HEADER, EMBED_OFFSET } from "./embed.ts";
 
