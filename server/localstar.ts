@@ -5,6 +5,7 @@
 import * as path from "https://deno.land/std/path/mod.ts";
 import { parse } from "https://deno.land/std/flags/mod.ts";
 import { serve } from "https://deno.land/std/http/server.ts";
+import { assert } from "https://deno.land/std/testing/asserts.ts";
 
 import { searchBinaryLayout } from "./utils/binary_layout.ts";
 
@@ -54,7 +55,11 @@ const denoEmbedMetadata: EmbedHeader = {
   },
   files: {},
 };
-const denoEmbedContent = new Map<string, Uint8Array>();
+const denoEmbedCache = new Map<string, Uint8Array>();
+
+type FileItem = string; // Full path to look up in denoEmbedMetadata
+type DirItem = { [k: string]: FileItem | DirItem };
+const denoEmbedTree: DirItem = {};
 
 if (denoLayout.compilePayload === false) {
   console.log("Running outside of a Deno executable");
@@ -68,6 +73,24 @@ if (denoLayout.embedPayload === false) {
   const metadata = JSON.parse(decoder.decode(metadataBuf));
   console.log("Metadata:", metadata);
   Object.assign(denoEmbedMetadata, metadata);
+
+  // Build the directory tree
+  for (const filePath of Object.keys(denoEmbedMetadata.files)) {
+    const dirs = path.dirname(filePath).split("/");
+    const file = path.basename(filePath);
+    // Walk
+    let w = denoEmbedTree;
+    for (const dir of dirs) {
+      if (!w[dir]) {
+        w[dir] = {};
+      }
+      // This better not already be a file like "cat/" and "cat" together...
+      assert(typeof w[dir] !== "string");
+      w = w[dir] as DirItem;
+    }
+    // Place file
+    w[file] = filePath;
+  }
 }
 
 const serverArgs = parse(Deno.args) as ServerArgs;
@@ -96,17 +119,33 @@ async function loadFromBinary(
   return fileBuf;
 }
 
-async function _serveLocalFileUnsafe(
+async function serveLocal(
   request: ServerRequest,
-  filePath: string,
+  fsPath: string,
+  fsRoot: string,
 ): Promise<Response> {
-  const [file, fileInfo] = await Promise.all([
-    Deno.open(filePath),
-    Deno.stat(filePath),
-  ]);
+  fsPath = path.join(fsRoot, normalizeURL(fsPath));
+  // Security check in case path joining changes beyond the fsRoot
+  if (fsPath.indexOf(fsRoot) !== 0) {
+    fsPath = fsRoot;
+  }
+  const fileInfo = await Deno.stat(fsPath);
+  if (fileInfo.isDirectory) {
+    const entries: Array<{ name: string; size: number | "" }> = [];
+    for await (const entry of Deno.readDir(fsPath)) {
+      const filePath = path.join(fsPath, entry.name);
+      const fileInfo = await Deno.stat(filePath);
+      entries.push({
+        name: `${entry.name}${entry.isDirectory ? "/" : ""}`,
+        size: entry.isFile ? (fileInfo.size ?? 0) : "",
+      });
+    }
+    return serveJSON(entries);
+  }
+  const file = await Deno.open(fsPath);
   const headers = new Headers();
   headers.set("content-length", fileInfo.size.toString());
-  const contentTypeValue = contentType(filePath);
+  const contentTypeValue = contentType(fsPath);
   headers.set("content-type", contentTypeValue);
   request.done.then(() => {
     file.close();
@@ -118,53 +157,49 @@ async function _serveLocalFileUnsafe(
   };
 }
 
-async function _serveLocalDirUnsafe(
-  request: ServerRequest,
-  dirPath: string,
-): Promise<Response> {
-  const entries: Array<{ name: string; size: number | "" }> = [];
-  for await (const entry of Deno.readDir(dirPath)) {
-    const filePath = path.join(dirPath, entry.name);
-    const fileInfo = await Deno.stat(filePath);
-    entries.push({
-      name: `${entry.name}${entry.isDirectory ? "/" : ""}`,
-      size: entry.isFile ? (fileInfo.size ?? 0) : "",
-    });
-  }
-  return serveJSON(entries);
-}
-
-async function serveLocal(
-  request: ServerRequest,
-  urlPath: string,
-  root: string,
-): Promise<Response> {
-  urlPath = normalizeURL(urlPath);
-  let fsPath = path.join(root, urlPath);
-  // Security check in case path joining changes beyond the root
-  if (fsPath.indexOf(root) !== 0) {
-    fsPath = root;
-  }
-  const fileInfo = await Deno.stat(fsPath);
-  return await (fileInfo.isDirectory
-    ? _serveLocalDirUnsafe(request, fsPath)
-    : _serveLocalFileUnsafe(request, fsPath));
-}
-
-async function serveEmbed(filePath: string): Promise<Response> {
-  const embedInfo = denoEmbedMetadata.files[filePath];
+async function serveEmbed(fsPath: string): Promise<Response> {
+  const embedInfo = denoEmbedMetadata.files[fsPath];
+  // Stat:
   if (!embedInfo) {
-    throw new Deno.errors.NotFound();
+    const dirs = path.dirname(fsPath).split("/");
+    // This is allowed to be either a directory (DirItem) or a file (FileItem)
+    // but since it wasn't in the denoEmbedMetadata it'll be a directory...
+    const goal = path.basename(fsPath);
+    let w = denoEmbedTree;
+    for (const dir of dirs) {
+      w = w[dir] as DirItem;
+      if (typeof w === "string" || typeof w === "undefined") {
+        // String if asking for a file in a file like a/b/c/index.html/d/
+        throw new Deno.errors.NotFound();
+      }
+    }
+    const toStat = w[goal];
+    // If it was a string, but not in denoEmbedMetadata, that'd be bad/weird
+    assert(typeof toStat !== "string");
+    if (!toStat) {
+      throw new Deno.errors.NotFound();
+    }
+    // Directory listing
+    const entries: Array<{ name: string; size: number | "" }> = [];
+    for (const [k, v] of Object.entries(toStat)) {
+      entries.push({
+        name: `${k}${typeof v !== "string" ? "/" : ""}`,
+        size: typeof v === "string"
+          ? (denoEmbedMetadata.files[`${fsPath}/${v}`].size)
+          : "",
+      });
+    }
+    return serveJSON(entries);
   }
-  let file = denoEmbedContent.get(filePath);
+  let file = denoEmbedCache.get(fsPath);
   if (!file) {
+    // Assumes all files (collectively) can be held in memory
     file = await loadFromBinary(embedInfo.offset, embedInfo.size);
-    denoEmbedContent.set(filePath, file);
+    denoEmbedCache.set(fsPath, file);
   }
-  // Assumes all files (collectively) can be held in memory
   const headers = new Headers();
   headers.set("content-length", embedInfo.size.toString());
-  const contentTypeValue = contentType(filePath);
+  const contentTypeValue = contentType(fsPath);
   headers.set("content-type", contentTypeValue);
   return {
     status: 200,
