@@ -61,7 +61,7 @@ function contentType(filepath: string): string {
   return MEDIA_TYPES[path.extname(filepath)] || "text/plain";
 }
 
-async function serveFile(
+async function serveLocalFile(
   req: ServerRequest,
   filePath: string,
 ): Promise<Response> {
@@ -83,7 +83,7 @@ async function serveFile(
   };
 }
 
-async function serveDir(dirPath: string): Promise<Response> {
+async function serveLocalDir(dirPath: string): Promise<Response> {
   const entries: Array<{ name: string; size: number | "" }> = [];
   for await (const entry of Deno.readDir(dirPath)) {
     const filePath = posix.join(dirPath, entry.name);
@@ -238,8 +238,8 @@ for await (const request of server) {
       }
       const fileInfo = await Deno.stat(fsPath);
       response = await (fileInfo.isDirectory
-        ? serveDir(fsPath)
-        : serveFile(request, fsPath));
+        ? serveLocalDir(fsPath)
+        : serveLocalFile(request, fsPath));
       continue;
     }
     // Else try an embed. The "/" -> "index.html" only works for embeds
