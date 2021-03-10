@@ -1,10 +1,13 @@
 #!/usr/bin/env -S deno run --allow-all --unstable
 
-// Two step build process since we don't officially know the size of the Deno
-// executable since `--lite` and `--target` executables are downloaded from
-// their server and could change size at any time.
+// TODO: For loop through given --root= paths and walk them for files. Merge
+// duplicates. Collect sizes. Stop at 30MB? For now. Builds the EmbedHeader.
+// TODO: For loop through now-final file list. Collect all the files in memory
+// TODO: For loop through given binaries, check they have a compile payload but
+// not an embed payload, read the bundle, write the embed, write the bundle,
+// offset the pointers.
 
-// TODO(*): Build multiple Windows/Mac/Linux via --target and --output
+// Done.
 
 import * as path from "https://deno.land/std/path/mod.ts";
 import {
@@ -12,7 +15,9 @@ import {
   assertStrictEquals,
 } from "https://deno.land/std/testing/asserts.ts";
 
-import type { EmbedHeader } from "./embed.ts";
+import { searchBinaryLayout } from "./utils/binary_layout.ts";
+
+import type { EmbedHeader } from "./utils/embed_header.ts";
 
 const [EMBED_DIR] = Deno.args;
 if (!EMBED_DIR) {
