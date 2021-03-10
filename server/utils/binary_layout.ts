@@ -26,6 +26,11 @@ type BinaryLayout = {
   compilePayload: BundleMetadataLayout | false;
 };
 
+const MAGIC_TRAILERS = {
+  COMPILE: "D3N0L4ND".toLowerCase(),
+  EMBED: "📦🧾",
+};
+
 const decoder = new TextDecoder();
 
 function searchBundleMetadataLayout(options: {
@@ -41,11 +46,11 @@ function searchBundleMetadataLayout(options: {
   const decodedMagic = decodedString.slice(0, magicTrailer.length);
   if (decodedMagic !== magicTrailer) {
     console.log(
-      `Trailer is wrong. Found: "${decodedMagic}" not "${magicTrailer}"`,
+      `Trailer at ${offset} !== ${magicTrailer.toUpperCase()}. Found: "${decodedMagic}"`,
     );
     return false;
   }
-  console.log(`Trailer OK: "${decodedMagic}"`);
+  console.log(`Trailer at ${offset} === "${magicTrailer.toUpperCase()}"`);
 
   const dv = new DataView(trailerBuffer.buffer, 8);
   const bundleOffset = Number(dv.getBigUint64(0));
@@ -67,7 +72,7 @@ function searchBinaryLayout(binary: Deno.File): BinaryLayout {
   const compilePayloadInfo = searchBundleMetadataLayout({
     binary,
     offset: endOffset - 24,
-    magicTrailer: "d3n0l4nd",
+    magicTrailer: MAGIC_TRAILERS.COMPILE,
   });
   if (compilePayloadInfo === false) {
     console.log("No compile payload");
@@ -79,7 +84,7 @@ function searchBinaryLayout(binary: Deno.File): BinaryLayout {
     offset: compilePayloadInfo
       ? compilePayloadInfo.bundleOffset - 1 - 24
       : endOffset - 24,
-    magicTrailer: "📦🧾",
+    magicTrailer: MAGIC_TRAILERS.EMBED,
   });
   if (embedPayloadInfo === false) {
     console.log("No embed payload");
@@ -91,4 +96,4 @@ function searchBinaryLayout(binary: Deno.File): BinaryLayout {
 }
 
 export type { BinaryLayout, BundleMetadataLayout };
-export { searchBinaryLayout, searchBundleMetadataLayout };
+export { MAGIC_TRAILERS, searchBinaryLayout, searchBundleMetadataLayout };

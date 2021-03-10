@@ -1,243 +1,246 @@
 #!/usr/bin/env -S deno run --allow-all --unstable
 
-// TODO: For loop through given --root= paths and walk them for files. Merge
-// duplicates. Collect sizes. Stop at 30MB? For now. Builds the EmbedHeader.
-// TODO: For loop through now-final file list. Collect all the files in memory
-// TODO: For loop through given binaries, check they have a compile payload but
-// not an embed payload, read the bundle, write the embed, write the bundle,
-// offset the pointers.
-
-// Done.
-
 import * as path from "https://deno.land/std/path/mod.ts";
+import * as fs from "https://deno.land/std/fs/mod.ts";
+import * as color from "https://deno.land/std/fmt/colors.ts";
+import { parse } from "https://deno.land/std/flags/mod.ts";
 import {
   assert,
   assertStrictEquals,
 } from "https://deno.land/std/testing/asserts.ts";
 
-import { searchBinaryLayout } from "./utils/binary_layout.ts";
+import { MAGIC_TRAILERS, searchBinaryLayout } from "./utils/binary_layout.ts";
+import { exit } from "./utils/exit.ts";
 
 import type { EmbedHeader } from "./utils/embed_header.ts";
 
-const [EMBED_DIR] = Deno.args;
-if (!EMBED_DIR) {
-  console.log("Provide a directory like `./build.ts ./path/to/files`");
-  Deno.exit(1);
-}
-const EMBED_TS_MARKER = `// XXX: Everything below is replaced by build.ts`;
-const TEST_COMPILE_PAYLOAD = 'console.log("📦");\n';
-
-const decoder = new TextDecoder();
-
-async function compileDeno(file: string, ...args: string[]) {
-  const cmd = ["deno", "compile", "--unstable", "--lite", ...args, file];
-  console.log(`$ ${cmd.join(" ")}`);
-  const process = Deno.run({ cmd });
-  const status = await process.status();
-  console.log(`$ Exit ${status.code}`);
-  assert(status.success);
+if (!import.meta.main) {
+  throw new Error(`Don't import this`);
 }
 
-function calculateBinaryLayout(binary: Deno.File) {
-  // From: https://github.com/denoland/deno/blob/f4980898cd4946a9e5c1d194ab7dbc32de28bf43/cli/standalone.rs#L49-L78
-  const TRAILER_MAGIC_TEXT = "d3n0l4nd";
+function printHelp() {
+  console.log(`Deno binary filesystem embedder
+Usage:
 
-  const trailerBuffer = new Uint8Array(24);
-  const trailerOffset = binary.seekSync(-24, Deno.SeekMode.End);
-  binary.readSync(trailerBuffer);
-  const trailerString = decoder.decode(trailerBuffer);
-  const trailerMagic = trailerString.slice(0, TRAILER_MAGIC_TEXT.length);
-  assertStrictEquals(trailerMagic, TRAILER_MAGIC_TEXT);
-  console.log(`Trailer OK: "${trailerMagic}"`);
+  > ./embed.ts [OPTIONS] <DenoBinary0> [...<DenoBinaryN>]
 
-  const dv = new DataView(trailerBuffer.buffer, 8);
-  const bundleOffset = Number(dv.getBigUint64(0));
-  const metadataOffset = Number(dv.getBigUint64(8));
+Embeds file trees merged from provided --root= paths. Files are loaded into a
+bundle in memory and then embedded to each provided Deno binary.
 
-  const bundleLen = metadataOffset - bundleOffset;
-  const metadataLen = trailerOffset - metadataOffset;
+Options:
 
-  return {
-    bundleOffset,
-    bundleLen,
-    metadataOffset,
-    metadataLen,
-  };
+  --root=     Required. The folder to walk. You can pass this multiple times to
+              overwrite entries.
+
+  --limit=    Defaults to 100MB. Prevents the system from running out of memory
+              if the --root path is too large.
+
+  --help      Prints this text and any provided arguments.
+
+Examples:
+
+  > ./embed.ts --root=./dir1 --root=./dir2 --limit=20MB ./bin/*
+  > ./embed.ts --root=/path/to/folder --limit=20MB --dry-run ./localstar
+`);
 }
 
-function writeToEmbedTs(content: string) {
-  let embedTs = Deno.readTextFileSync("embed.ts");
-  const replaceMarkerIndex = embedTs.lastIndexOf(EMBED_TS_MARKER);
-  assert(
-    replaceMarkerIndex !== -1,
-    `Couldn't find "${EMBED_TS_MARKER}" in embed.ts`,
-  );
-  embedTs = embedTs.slice(0, replaceMarkerIndex + EMBED_TS_MARKER.length);
+// Helper
+const toBytes = (human: string) => {
+  const match = human.match(/^(\d+)([KMG]?B?)$/i);
+  if (!match) return (`Unknown limit ${human}`);
+  const [, number, unit] = match;
+  const multiplier = {
+    B: 1,
+    K: 1 << 10,
+    M: 1 << 20,
+    G: 1 << 30,
+  }[unit.toUpperCase()[0] || "B"];
+  if (!multiplier) return (`Unknown limit unit "${unit}"`);
+  return Number(number) * multiplier;
+};
 
-  console.log(
-    "Writing to embed.ts",
-    content.length > 300
-      ? content.slice(0, Math.min(content.length, 300)) + "..."
-      : content,
-  );
-  embedTs = embedTs + content;
-  Deno.writeTextFileSync("embed.ts", embedTs);
+const flags = parse(Deno.args, {
+  boolean: ["dry-run", "help"],
+  string: ["root", "limit"],
+  unknown: (arg) => {
+    if (arg[0] === "-") throw exit(1, `Unknown arg "${arg}"`);
+  },
+}) as {
+  "_": string | string[];
+  "root"?: string | string[];
+  "limit"?: number;
+  "dry-run"?: boolean;
+  "help"?: boolean;
+};
+
+if (flags.help) {
+  printHelp();
+  throw exit(0, "Args:", Deno.args);
+}
+if (flags._.length === 0) {
+  throw exit(1, "Must specify binaries to embed into; see --help");
+}
+if (
+  typeof flags.root === "undefined" || flags.root === "" ||
+  Array.isArray(flags.root) && flags.root.some((x) => x === "")
+) {
+  throw exit(1, "Must specify a non-empty --root arg");
+}
+if (Array.isArray(flags.limit)) {
+  throw exit(1, "Must specify --limit only once");
 }
 
-function getSystemFileName(initName: string) {
-  if (Deno.build.os === "windows") return `${initName}.exe`;
-  else return initName;
+const binaries = flags._;
+const rootFolders = Array.isArray(flags.root) ? flags.root : [flags.root];
+const limit = toBytes(String(flags.limit ?? "100MB"));
+
+const filesToBundle: Record<string, string> = {};
+for (const root of rootFolders) {
+  for await (const file of fs.walk(root, { includeDirs: false })) {
+    const embedPath = path.relative(root, file.path);
+    console.log(file.path, "=>", embedPath);
+    if (filesToBundle[embedPath]) {
+      console.log(color.red(`⚠ Overwriting ${embedPath}`));
+    }
+    filesToBundle[embedPath] = file.path;
+  }
 }
 
-Deno.writeTextFileSync("compileTest.ts", TEST_COMPILE_PAYLOAD);
-await compileDeno("compileTest.ts");
-Deno.removeSync("compileTest.ts");
-
-let denoSize: number;
-let embedOffset: number;
-let embedHeader: EmbedHeader;
-
-// Use a test binary to find the size of Deno itself
-{
-  const compileTestFileName = getSystemFileName("compileTest"); //cant find this file on windows as it is emitted as compileTest on unix and compileTest.exe on windows
-  const testBinary = Deno.openSync(compileTestFileName, {
-    read: true,
-    write: true,
-  });
-  const testLayout = calculateBinaryLayout(testBinary);
-  console.log("Layout for compileTest:", testLayout);
-
-  // TODO(Grant): new Deno.Buffer() ?
-  const bundleBuffer = new Uint8Array(testLayout.bundleLen);
-  testBinary.seekSync(testLayout.bundleOffset, Deno.SeekMode.Start);
-  testBinary.readSync(bundleBuffer);
-  const payload = decoder.decode(bundleBuffer);
-  assertStrictEquals(payload, TEST_COMPILE_PAYLOAD);
-  // Trim incase it happens to end in \n
-  console.log(`Payload OK: "${payload.trim()}"`);
-  testBinary.close();
-  denoSize = testLayout.bundleOffset - 1;
-}
-
-// Generate the embed header and write it to embed.ts for localstar.ts to import
-{
-  embedOffset = denoSize + 1;
-  embedHeader = {
-    versions: {
-      deno: Deno.version.deno,
-      starboard: "",
-    },
-    files: [],
-  };
-  // TODO(*): fs.expandGlob or walk? For nested directories, likely Dylan's.
-  for (const dirEntry of Deno.readDirSync(EMBED_DIR)) {
-    if (!dirEntry.isFile) continue;
-    embedHeader.files.push(
-      {
-        path: dirEntry.name,
-        size: Deno.statSync(path.join(EMBED_DIR, dirEntry.name)).size,
-      },
+const embedHeader: EmbedHeader = {
+  version: {
+    deno: Deno.version.deno,
+    starboard: "TODO(*):",
+  },
+  files: {},
+};
+let embedBundleSize = 0;
+const embedBundleBuffer = new Deno.Buffer();
+for (const [embedPath, localPath] of Object.entries(filesToBundle)) {
+  const { size } = await Deno.stat(localPath);
+  if (embedBundleSize + size > limit) {
+    console.log(
+      color.red(`⚠ Size limit reached. Stopped at ${embedBundleSize}`),
     );
+    break;
   }
-
-  // March 2nd 1.8.0 https://github.com/denoland/deno/issues/1968#issuecomment-780503687
-  // new Intl.Collator({ numeric: true, caseFirst: false });
-  // Until then this sorts "1" < "10" < "2" :/
-  embedHeader.files.sort((a, b) => {
-    const x = path.extname(a.path).localeCompare(path.extname(b.path));
-    return x === 0 ? a.path.localeCompare(b.path) : x;
-  });
-
-  const embedHeaderJSON = JSON.stringify(embedHeader, null, 2);
-  writeToEmbedTs(`
-export const EMBED_OFFSET = ${embedOffset};
-export const EMBED_HEADER = ${embedHeaderJSON} as EmbedHeader;
-`);
+  const file = await Deno.open(localPath);
+  await Deno.copy(file, embedBundleBuffer);
+  embedHeader.files[embedPath] = { size, offset: embedBundleSize };
+  embedBundleSize += size;
+  file.close();
 }
+console.log(embedHeader);
+console.log(`Embed bundle is ${embedBundleSize} bytes`);
 
-// Write the new Deno binary, load the files, nudge the offsets
-{
-  const initName = "localstar-init";
-  await compileDeno(
-    "localstar.ts",
-    "--allow-read",
-    "--allow-net",
-    "--output",
-    initName,
+const encoder = new TextEncoder();
+
+for (const binaryPath of binaries) {
+  console.log(`\n${color.bgWhite(color.black(`Binary: ${binaryPath}`))}`);
+  const binary = await Deno.open(binaryPath, { read: true, write: true });
+  const layoutStart = searchBinaryLayout(binary);
+
+  if (layoutStart.compilePayload === false) {
+    console.log(`Skipping uncompiled binary`);
+    binary.close();
+    continue;
+  }
+  if (layoutStart.embedPayload !== false) {
+    console.log(`Skipping already packaged binary`);
+    binary.close();
+    continue;
+  }
+  console.log("OK Embedding...");
+
+  // Load the compile payload in memory
+  const { bundleLen, metadataLen } = layoutStart.compilePayload;
+  const compilePayloadBuffer = new Uint8Array(bundleLen + metadataLen);
+  await binary.seek(
+    layoutStart.compilePayload.bundleOffset,
+    Deno.SeekMode.Start,
   );
-  // Immediately replace it so we don't commit the changes by accident
-  writeToEmbedTs(`
-export const EMBED_OFFSET = 0;
-export const EMBED_HEADER = {} as EmbedHeader;
-`);
-  const emittedInitFileName = getSystemFileName(initName);
-  const lsInitBinary = Deno.openSync(emittedInitFileName, {
-    read: true,
-    write: true,
-  });
-  const lsInitLayout = calculateBinaryLayout(lsInitBinary);
-
-  console.log(`Layout for ${emittedInitFileName}:`, lsInitLayout);
-  // TODO(Grant): Is it "better" to Deno.copy rather than have Rust copyFile?
-  const buildFileName = getSystemFileName("localstar");
-  Deno.copyFileSync(emittedInitFileName, buildFileName);
-  Deno.truncateSync(buildFileName, denoSize);
-  const lsBinary = Deno.openSync(buildFileName, { read: true, write: true });
-  lsBinary.seekSync(0, Deno.SeekMode.End);
-
-  let embedPayloadSize = 0;
-  for (const fileListing of embedHeader.files) {
-    const file = Deno.openSync(path.join(EMBED_DIR, fileListing.path));
-    embedPayloadSize += await Deno.copy(file, lsBinary);
-    file.close();
+  // TODO: Is this really the best way to read N bytes from a file? Feels like a
+  // lot of code. Using `file.read(uintarray)` will stop at 16384 bytes.
+  let n = 0;
+  while (n < bundleLen + metadataLen) {
+    const nread = await binary.read(compilePayloadBuffer.subarray(n));
+    if (nread === null) break;
+    n += nread;
   }
-  console.log(`Wrote ${embedPayloadSize} bytes of embed files`);
-  const calculatedBundleOffset = denoSize + embedPayloadSize;
+  assertStrictEquals(n, bundleLen + metadataLen);
+  const denoSize = layoutStart.compilePayload.bundleOffset - 1;
+  console.log(`Deno binary layout:
+  - Deno size: ${denoSize}
+  - Bundle/JS size: ${bundleLen}
+  - Metadata/JSON size: ${metadataLen}\n`);
 
-  // Copy until EOF: aka bundle and trailer (magic/pointers)
-  lsInitBinary.seekSync(lsInitLayout.bundleOffset, Deno.SeekMode.Start);
+  // Truncate so the binary is only Deno
+  await Deno.truncate(binaryPath, denoSize);
+
+  // To adjust the u64s from layoutStart; size includes embed trailer+u64s
+  let embedPayloadWritten = 0;
+
+  // Add embed bundle
+  await binary.seek(0, Deno.SeekMode.End);
   {
-    const bytes = await Deno.copy(lsInitBinary, lsBinary);
-    const expected = lsInitLayout.bundleLen + lsInitLayout.metadataLen + 24;
-    assertStrictEquals(bytes, expected);
+    await Deno.copy(embedBundleBuffer, binary);
+    embedPayloadWritten += embedBundleSize;
   }
-
-  // Check that the payload is in the right place
-  const bufFrom = new Uint8Array(100);
-  const bufTo = new Uint8Array(100);
-  // TODO(Grant): Can I use Deno.copy() to write? Would it stop at 100 bytes?
-  // Dylan: Deno copy def coms with a third options param where u could add something like {bufSize: 100}
-  lsInitBinary.seekSync(lsInitLayout.bundleOffset, Deno.SeekMode.Start);
-  lsInitBinary.readSync(bufFrom);
-  console.log("End:", lsBinary.seekSync(0, Deno.SeekMode.End));
-  console.log("BundleOffset:", calculatedBundleOffset);
-  lsBinary.seekSync(calculatedBundleOffset, Deno.SeekMode.Start);
-  lsBinary.readSync(bufTo);
-  const payloadFrom = decoder.decode(bufFrom);
-  const payloadTo = decoder.decode(bufTo);
-  assertStrictEquals(payloadTo, payloadFrom);
-  console.log("Payload copy check OK");
-
-  // Update the pointers
-  const diff = calculatedBundleOffset - lsInitLayout.bundleOffset;
-  const bundleOffset = lsInitLayout.bundleOffset + diff;
-  const metadataOffset = lsInitLayout.metadataOffset + diff;
-  lsBinary.seekSync(-16, Deno.SeekMode.End);
-  const pointers = new Uint8Array(16);
-  const dv = new DataView(pointers.buffer);
-  dv.setBigUint64(0, BigInt(bundleOffset));
-  dv.setBigUint64(8, BigInt(metadataOffset));
-  lsBinary.writeSync(pointers);
-
+  // Add embed metadataBuffer with adjusted offsets
+  {
+    const customEmbedHeader: EmbedHeader = {
+      version: embedHeader.version,
+      files: {},
+    };
+    for (const [embedPath, o] of Object.entries(embedHeader.files)) {
+      customEmbedHeader.files[embedPath] = {
+        size: o.size,
+        offset: o.offset + denoSize,
+      };
+    }
+    const metadataBuffer = encoder.encode(JSON.stringify(customEmbedHeader));
+    await Deno.writeAll(binary, metadataBuffer);
+    embedPayloadWritten += metadataBuffer.byteLength;
+  }
+  // Add embed trailer
+  {
+    console.log("Signing embed payload with trailer...");
+    await binary.write(encoder.encode(MAGIC_TRAILERS.EMBED));
+    const pointers = new Uint8Array(16);
+    const dv = new DataView(pointers.buffer);
+    dv.setBigUint64(0, BigInt(denoSize + 1));
+    dv.setBigUint64(8, BigInt(denoSize + 1 + embedBundleSize));
+    await binary.write(pointers);
+    embedPayloadWritten += 24;
+  }
+  // Add compiled payload (bundle+metadata)
+  {
+    console.log("Readding original compile payload...");
+    await Deno.writeAll(binary, compilePayloadBuffer);
+  }
+  // Add compiled trailer
+  {
+    console.log("Signing compile payload with trailer...");
+    const prev = layoutStart.compilePayload;
+    await binary.write(encoder.encode(MAGIC_TRAILERS.COMPILE));
+    const pointers = new Uint8Array(16);
+    const dv = new DataView(pointers.buffer);
+    dv.setBigUint64(0, BigInt(prev.bundleOffset + embedPayloadWritten));
+    dv.setBigUint64(8, BigInt(prev.metadataOffset + embedPayloadWritten));
+    await binary.write(pointers);
+  }
   // Check
-  const lsBinaryLayout = calculateBinaryLayout(lsBinary);
-  assert(lsBinaryLayout.bundleOffset === bundleOffset);
-  assert(lsBinaryLayout.metadataOffset === metadataOffset);
-  console.log("Pointers updated");
-  console.log("OK 📦");
-
-  // Done
-  lsBinary.close();
-  lsInitBinary.close();
-  Deno.removeSync(emittedInitFileName);
+  console.log("Integrity check");
+  const layoutFinal = searchBinaryLayout(binary);
+  assert(layoutFinal.compilePayload !== false);
+  assert(layoutFinal.embedPayload !== false);
+  assertStrictEquals(
+    layoutFinal.compilePayload.bundleOffset,
+    layoutStart.compilePayload.bundleOffset + embedPayloadWritten,
+  );
+  assertStrictEquals(
+    layoutFinal.compilePayload.metadataOffset,
+    layoutStart.compilePayload.metadataOffset + embedPayloadWritten,
+  );
+  console.log("Binary OK 📦✅");
+  binary.close();
 }

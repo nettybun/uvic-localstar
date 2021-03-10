@@ -3,6 +3,7 @@
 import * as path from "https://deno.land/std/path/mod.ts";
 import * as fs from "https://deno.land/std/fs/mod.ts";
 import * as color from "https://deno.land/std/fmt/colors.ts";
+import { exit } from "../utils/exit.ts";
 
 if (!import.meta.main) {
   throw new Error(`Don't import this`);
@@ -43,11 +44,6 @@ Examples:
 `);
 }
 
-// I'll throw this because it keeps TS happy as I reduce possible types
-const exit = (code: number, ...msg: unknown[]) => {
-  console.log(...msg);
-  Deno.exit(code);
-};
 // Parsing is difficult because I want to leave most args untouched for Deno's
 // compile subcommand handle parsing. Look for exactly --output and --target.
 // Don't even validate the target in case that list change in the future.
@@ -70,7 +66,7 @@ for (let i = 0; i < args.length; i++) {
     if (!(opt in flags)) continue;
     const value = args[i + 1];
     if (!value || value.startsWith("-")) {
-      throw exit(1, `${arg} needs a value; read --help for details`);
+      throw exit(1, `${arg} needs a value; see --help`);
     }
     flags[opt as Flag].push(value);
     console.log("Removing", args.splice(i, 2));
