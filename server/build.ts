@@ -7,7 +7,7 @@
 // TODO(*): Build multiple Windows/Mac/Linux via --target and --output
 
 import { path } from "./deps.ts";
-import { assert, assertStrictEquals} from "./deps.ts";
+import { assert, assertStrictEquals } from "./deps.ts";
 
 import type { EmbedHeader } from "./embed.ts";
 
@@ -64,7 +64,7 @@ function writeToEmbedTs(content: string) {
     replaceMarkerIndex !== -1,
     `Couldn't find "${EMBED_TS_MARKER}" in embed.ts`,
   );
-  embedTs = embedTs.slice(0, replaceMarkerIndex + EMBED_TS_MARKER.length );
+  embedTs = embedTs.slice(0, replaceMarkerIndex + EMBED_TS_MARKER.length);
 
   console.log(
     "Writing to embed.ts",
@@ -76,9 +76,9 @@ function writeToEmbedTs(content: string) {
   Deno.writeTextFileSync("embed.ts", embedTs);
 }
 
-function getSystemFileName(initName: string){
- if(Deno.build.os === "windows") return `${initName}.exe`
- else return initName
+function getSystemFileName(initName: string) {
+  if (Deno.build.os === "windows") return `${initName}.exe`;
+  else return initName;
 }
 
 Deno.writeTextFileSync("compileTest.ts", TEST_COMPILE_PAYLOAD);
@@ -91,8 +91,11 @@ let embedHeader: EmbedHeader;
 
 // Use a test binary to find the size of Deno itself
 {
-  let compileTestFileName =  getSystemFileName("compileTest")//cant find this file on windows as it is emitted as compileTest on unix and compileTest.exe on windows
-  const testBinary = Deno.openSync(compileTestFileName, { read: true, write: true }); 
+  const compileTestFileName = getSystemFileName("compileTest"); //cant find this file on windows as it is emitted as compileTest on unix and compileTest.exe on windows
+  const testBinary = Deno.openSync(compileTestFileName, {
+    read: true,
+    write: true,
+  });
   const testLayout = calculateBinaryLayout(testBinary);
   console.log("Layout for compileTest:", testLayout);
 
@@ -146,7 +149,6 @@ export const EMBED_HEADER = ${embedHeaderJSON} as EmbedHeader;
 
 // Write the new Deno binary, load the files, nudge the offsets
 {
-
   const initName = "localstar-init";
   await compileDeno(
     "localstar.ts",
@@ -160,13 +162,16 @@ export const EMBED_HEADER = ${embedHeaderJSON} as EmbedHeader;
 export const EMBED_OFFSET = 0;
 export const EMBED_HEADER = {} as EmbedHeader;
 `);
-  const emittedInitFileName = getSystemFileName(initName); 
-  const lsInitBinary = Deno.openSync(emittedInitFileName, { read: true, write: true });
+  const emittedInitFileName = getSystemFileName(initName);
+  const lsInitBinary = Deno.openSync(emittedInitFileName, {
+    read: true,
+    write: true,
+  });
   const lsInitLayout = calculateBinaryLayout(lsInitBinary);
 
   console.log(`Layout for ${emittedInitFileName}:`, lsInitLayout);
   // TODO(Grant): Is it "better" to Deno.copy rather than have Rust copyFile?
-  const buildFileName = getSystemFileName("localstar")
+  const buildFileName = getSystemFileName("localstar");
   Deno.copyFileSync(emittedInitFileName, buildFileName);
   Deno.truncateSync(buildFileName, denoSize);
   const lsBinary = Deno.openSync(buildFileName, { read: true, write: true });
