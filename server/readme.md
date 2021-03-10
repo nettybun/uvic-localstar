@@ -1,69 +1,96 @@
-## Features:
+# Localstar Deno
 
-- Webserver
+This is a webserver that sends files to run Localstar and Starboard Notebook.
+It's somewhat based on Deno's std/http/file_server.ts. Most of the code here is
+about embedding a virtual read-only filesystem into compiled Deno executables,
+since that's the hard part.
 
-Serve the internal files and have a way to mount a directory.
-Argument passing via compiled binaries?
-Port.
-Directory.
+## Running
 
-- Update check
-  - Starboard check?
-    - via npm ungz+untar
-    - via github unzip
-  - Deno check?
-  - Self check? From our repo somehow...
+1. Install Deno. It's also a single executable like Localstar, so just drop it
+   on your $PATH. https://deno.land/#installation
 
-Notification is fine.
+2. Clone/Download this repo and navigate here.
 
-## Packing/Building
+3. Run `./scripts/compile.ts ./localstar.ts --output=./bin/` This will
+   bundle Localstar and all of its dependencies into a Deno binary for each
+   platform. Read below for options.
 
-Two step build process since we don't officially know the size of the Deno
-executable since `--lite` and `--target` executables are downloaded from their
-server and could change size at any time.
+4. Head up to _../client/_ and build their frontend.
 
-Step 1:
+5. Download Starboard's files. (3.3MB download; 12MB unpacked):
+   https://registry.npmjs.org/starboard-notebook/-/starboard-notebook-0.7.14.tgz
+
+6. Return here.
+
+7. Run `scripts/embed.ts --root=../client/build/ --root=../starboard/ ./bin/*`
+   to embed the files into each binary in _bin/_. Read below for options.
+
+## Scripts
+
+You can also run `--help` for options.
+
+### `compile.ts`
+
+This is a wrapper for `deno compile` which takes the same format:
 
 ```
-deno compile --unstable --allow-all starboard-deno.ts
+./scripts/compile.ts [OPTIONS] <SCRIPT_ARG> [FLAGS]
 ```
 
-- Deno itself
-- Starboard-Deno with EMBED_LOC=0
-- Deno
-- U64 A
-- U64 B
+Where `[OPTIONS]` are processed by the compiler (see `deno compile --help`) and
+`[FLAGS]` are given to the runtime program.
 
-Next I have an embedWriter.ts script that:
-1) Reads the U64 A
-2) Copies Deno from 0-A to a new binary
-4) Generates the JSON of
-  {
-    version: {
-      self: commit/1.3.2
-      deno: commit/1.3.2
-      starboard: commit/1.3.2
-    }
-    embeds: [
-      { filePath, hash?, size }
-      { filePath, hash?, size }
-      { filePath, hash?, size }
-      ...
-    ]
-  }
-5) Save this seek position: EO_DENO_SEEK
-6) Get size of JSON.stringify() JSON_SIZE
-7) Write JSON_SIZE immediately after Deno (TODO: U64? U32? Any? Probably.)
-8) Write the JSON immediately after JSON_SIZE
-9) For each file in the embed payload, in order, write it
-10) Save this seek position: EO_STARBOARD_SEEK
-11) Copy everything up to EOF-12 over
-    1)  no no no no no. EMBED_LOC update
-12) Assert the last 8 characters are DENOLAND
-13) New pointer = Old pointer + String(JSON_SIZE).length + JSON_SIZE + EMBEDS.reduce(...)
-    Hmm. Or. Or. Um. Pointer += (Current seek - EO_DENO_SEEK)
-    Or.
-    Read old JS pointer. (OLD_JS)
-    JS pointer = EO_STARBOARD_SEEK
-    DIFF = JS - OLD_JS
-    JSON = JSON + DIFF
+These options are intercepted before passing to `deno compile`:
+
+- `--target=`: Optional. Platform/target to build. Since `deno compile` only
+  accepts this once passing this flag multiple times will call `deno compile`
+  multiple times for each target. Default value is all targets. Values are:
+  aarch64-apple-darwin, x86_64-apple-darwin, x86_64-pc-windows-msvc,
+  x86_64-unknown-linux-gnu
+
+- `--output=`: Optional. Defaults to `$PWD/[name]-[target]`. The builtin Deno
+  flag `$PWD/<inferred-name>` is broken since won't include an ".exe" on Windows
+  builds and will overwrite previous binaries since Linux and Mac will have the
+  same filename unless `[target]` is included. Note that by overwriting this
+  value you can't use Deno's special "inferred" naming logic for handling
+  entrypoints like "mod.ts" and folder names - sorry. There's two values that
+  are replaced in the path:
+
+    - `[name]` is `path.basename(entrypointPath, path.extname(entrypointPath))`
+    - `[target]` is the platform target
+
+Examples:
+
+```
+./scripts/compile.ts --target=x86_64-apple-darwin --target=x86_64-pc-windows-msvc --lite ./localstar.ts --port 8080
+./scripts/compile.ts --lite --output=./bin/[target]/compiled-[name]-$(date -Iminutes) ./localstar.ts
+```
+
+Argument parsing is _really hard_ (wow) and because I don't know all the OPTIONS
+for Deno I don't know that `--lite ./file.ts` is lite as a boolean and not an
+assignment to file.ts. It's hard. **Use `=` for target and output**
+
+### `embed.ts`
+
+Embeds a virtual filesystem into Deno binaries.
+
+```
+./scripts/embed.ts --root=../client/build/ --root=../starboard/ ./bin/*
+```
+
+Flags:
+
+- `--root=`: Required. The folder to walk. You can pass this multiple times.
+
+For now the entire virtual filesystem is held in memory before writing it to the
+binary since it's likely written to multiple binaries. Roots can overwrite files
+as they merge. TODO(Grant): You'll see a warning about this if it happens.
+
+### `info.ts`
+
+Prints info about the magic trailers in a Deno binary.
+
+```
+./scripts/info.ts ./bin/localstar
+```
