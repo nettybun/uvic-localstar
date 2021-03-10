@@ -73,10 +73,6 @@ Examples:
 ./scripts/compile.ts --lite --output=./bin/[target]/compiled-[name]-$(date -Iminutes) ./localstar.ts
 ```
 
-Argument parsing is _really hard_ (wow) and because I don't know all the OPTIONS
-for Deno I don't know that `--lite ./file.ts` is lite as a boolean and not an
-assignment to file.ts. It's hard. **Use `=` for target and output**
-
 ### `embed.ts`
 
 Embeds a virtual filesystem into Deno binaries.
