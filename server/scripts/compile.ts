@@ -37,7 +37,7 @@ Options processed before passing to \`deno compile\`:
 
 Examples:
 
-  > ./compile.ts --target x86_64-apple-darwin --target x86_64-pc-windows-msvc --lite ../localstar.ts --port 8080
+  > ./compile.ts --target=x86_64-apple-darwin --target=x86_64-pc-windows-msvc --lite ../localstar.ts --port 8080
   > ./compile.ts --lite --output=../bin/[target]/compiled-[name]-$(date -Iminutes) ../localstar.ts
 `);
 }
