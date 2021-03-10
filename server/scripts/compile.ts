@@ -2,9 +2,8 @@
 
 import * as path from "https://deno.land/std/path/mod.ts";
 import * as fs from "https://deno.land/std/fs/mod.ts";
-import { parse } from "https://deno.land/std/flags/mod.ts";
 import * as color from "https://deno.land/std/fmt/colors.ts";
-import { assertStrictEquals } from "https://deno.land/std/testing/asserts.ts";
+import { parse } from "https://deno.land/std/flags/mod.ts";
 
 const knownTargets = {
   x86_64_Linux: "x86_64-unknown-linux-gnu",
