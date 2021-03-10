@@ -12,6 +12,12 @@ since that's the hard part.
 
 2. Clone/Download this repo and navigate here.
 
+3. Run `./run.sh`
+
+4. Done ✨ Run `./bin/localstar` for your platform
+
+Or, alternatively do it by hand:
+
 3. Run `./scripts/compile.ts ./localstar.ts --output=./bin/` This will
    bundle Localstar and all of its dependencies into a Deno binary for each
    platform. Read below for options.
