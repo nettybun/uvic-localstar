@@ -32,8 +32,11 @@ const MAGIC_TRAILERS = {
 };
 
 const decoder = new TextDecoder();
+const encoder = new TextEncoder();
 
-function searchBundleMetadataLayout(options: {
+const asHex = (offset: number) => `0x${offset.toString(16).toUpperCase()}`;
+
+function readTrailer(options: {
   binary: Deno.File;
   offset: number;
   magicTrailer: string;
@@ -42,19 +45,20 @@ function searchBundleMetadataLayout(options: {
   const trailerBuffer = new Uint8Array(24);
   const trailerOffset = binary.seekSync(offset, Deno.SeekMode.Start);
   binary.readSync(trailerBuffer);
-  const decodedString = decoder.decode(trailerBuffer);
-  const decodedMagic = decodedString.slice(0, magicTrailer.length);
+  console.log(
+    `Reading 24 byte trailer for "${magicTrailer}" at ${asHex(trailerOffset)}`,
+  );
+  const decodedMagic = decoder.decode(trailerBuffer.subarray(0, 8));
   if (decodedMagic !== magicTrailer) {
-    console.log(
-      `Trailer at ${offset} !== ${magicTrailer.toUpperCase()}. Found: "${decodedMagic}"`,
-    );
+    console.log(`Magic was "${decodedMagic}"; bailing`);
     return false;
   }
-  console.log(`Trailer at ${offset} === "${magicTrailer.toUpperCase()}"`);
-
   const dv = new DataView(trailerBuffer.buffer, 8);
   const bundleOffset = Number(dv.getBigUint64(0));
   const metadataOffset = Number(dv.getBigUint64(8));
+  console.log(
+    `Read 2x u64 pointers ${asHex(bundleOffset)}${asHex(metadataOffset)}`,
+  );
 
   const bundleLen = metadataOffset - bundleOffset;
   const metadataLen = trailerOffset - metadataOffset;
@@ -67,28 +71,45 @@ function searchBundleMetadataLayout(options: {
   };
 }
 
-function searchBinaryLayout(binary: Deno.File): BinaryLayout {
-  const endOffset = binary.seekSync(0, Deno.SeekMode.End);
-  const compilePayloadInfo = searchBundleMetadataLayout({
+async function writeTrailer(options: {
+  binary: Deno.File;
+  magicTrailer: string;
+  bundleOffset: number;
+  metadataOffset: number;
+}): Promise<void> {
+  const { binary, magicTrailer, bundleOffset, metadataOffset } = options;
+  const currentOffset = await binary.seek(0, Deno.SeekMode.Current);
+  console.log(
+    `Writing magic "${magicTrailer}" at ${asHex(currentOffset)}`,
+  );
+  await binary.write(encoder.encode(magicTrailer));
+  console.log(
+    `Writing 2x u64 pointers ${asHex(bundleOffset)}${asHex(metadataOffset)}`,
+  );
+  const pointers = new Uint8Array(16);
+  const dv = new DataView(pointers.buffer);
+  dv.setBigUint64(0, BigInt(bundleOffset));
+  dv.setBigUint64(8, BigInt(metadataOffset));
+  await binary.write(pointers);
+}
+
+function readBinaryLayout(binary: Deno.File): BinaryLayout {
+  const EOF = binary.seekSync(0, Deno.SeekMode.End);
+  const compilePayloadInfo = readTrailer({
     binary,
-    offset: endOffset - 24,
+    offset: EOF - 24,
     magicTrailer: MAGIC_TRAILERS.COMPILE,
   });
-  if (compilePayloadInfo === false) {
-    console.log("No compile payload");
-  }
   // It's 100% unlikely that there's an embed payload and no compile payload,
   // but check anyway...
-  const embedPayloadInfo = searchBundleMetadataLayout({
+  const embedOffset = compilePayloadInfo
+    ? compilePayloadInfo.bundleOffset - 24
+    : EOF - 24;
+  const embedPayloadInfo = readTrailer({
     binary,
-    offset: compilePayloadInfo
-      ? compilePayloadInfo.bundleOffset - 1 - 24
-      : endOffset - 24,
+    offset: embedOffset,
     magicTrailer: MAGIC_TRAILERS.EMBED,
   });
-  if (embedPayloadInfo === false) {
-    console.log("No embed payload");
-  }
   return {
     compilePayload: compilePayloadInfo,
     embedPayload: embedPayloadInfo,
@@ -96,4 +117,4 @@ function searchBinaryLayout(binary: Deno.File): BinaryLayout {
 }
 
 export type { BinaryLayout, BundleMetadataLayout };
-export { MAGIC_TRAILERS, searchBinaryLayout, searchBundleMetadataLayout };
+export { asHex, MAGIC_TRAILERS, readBinaryLayout, readTrailer, writeTrailer };

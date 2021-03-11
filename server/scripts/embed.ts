@@ -9,7 +9,12 @@ import {
   assertStrictEquals,
 } from "https://deno.land/std/testing/asserts.ts";
 
-import { MAGIC_TRAILERS, searchBinaryLayout } from "../utils/binary_layout.ts";
+import {
+  asHex,
+  MAGIC_TRAILERS,
+  readBinaryLayout,
+  writeTrailer,
+} from "../utils/binary_layout.ts";
 import { exit } from "../utils/exit.ts";
 
 import type { EmbedHeader } from "../utils/embed_header.ts";
@@ -137,7 +142,7 @@ const encoder = new TextEncoder();
 for (const binaryPath of binaries) {
   console.log(`\n${color.bgWhite(color.black(`Binary: ${binaryPath}`))}`);
   const binary = await Deno.open(binaryPath, { read: true, write: true });
-  const layoutStart = searchBinaryLayout(binary);
+  const layoutStart = readBinaryLayout(binary);
 
   if (layoutStart.compilePayload === false) {
     console.log(`Skipping uncompiled binary`);
@@ -145,17 +150,27 @@ for (const binaryPath of binaries) {
     continue;
   }
   if (layoutStart.embedPayload !== false) {
-    console.log(`Skipping already packaged binary`);
+    console.log(`Skipping binary that already has an embed filesystem`);
     binary.close();
     continue;
   }
-  console.log("OK Embedding...");
 
   // Load the compile payload in memory
-  const { bundleLen, metadataLen } = layoutStart.compilePayload;
+  const { bundleLen, bundleOffset, metadataLen, metadataOffset } =
+    layoutStart.compilePayload;
+
+  const EOF = await binary.seek(0, Deno.SeekMode.End);
+
+  console.table({
+    bundleOffset: asHex(bundleOffset),
+    metadataOffset: asHex(metadataOffset),
+    trailerOffset: asHex(EOF - 24),
+    EOF: asHex(EOF),
+  });
+
   const compilePayloadBuffer = new Uint8Array(bundleLen + metadataLen);
   await binary.seek(
-    layoutStart.compilePayload.bundleOffset,
+    bundleOffset,
     Deno.SeekMode.Start,
   );
   // TODO: Is this really the best way to read N bytes from a file? Feels like a
@@ -167,11 +182,15 @@ for (const binaryPath of binaries) {
     n += nread;
   }
   assertStrictEquals(n, bundleLen + metadataLen);
-  const denoSize = layoutStart.compilePayload.bundleOffset - 1;
+  const denoSize = bundleOffset - 1;
   console.log(`Deno binary layout:
   - Deno size: ${denoSize}
-  - Bundle/JS size: ${bundleLen}
-  - Metadata/JSON size: ${metadataLen}\n`);
+  - Bundle/JS size: ${bundleLen} from ${asHex(bundleOffset)} to ${
+    asHex(bundleOffset + bundleLen)
+  }
+  - Metadata/JSON size: ${metadataLen} from ${asHex(metadataOffset)} to ${
+    asHex(metadataOffset + metadataLen)
+  }`);
 
   // Truncate so the binary is only Deno
   await Deno.truncate(binaryPath, denoSize);
@@ -203,44 +222,60 @@ for (const binaryPath of binaries) {
   }
   // Add embed trailer
   {
-    console.log("Signing embed payload with trailer...");
-    await binary.write(encoder.encode(MAGIC_TRAILERS.EMBED));
-    const pointers = new Uint8Array(16);
-    const dv = new DataView(pointers.buffer);
-    dv.setBigUint64(0, BigInt(denoSize + 1));
-    dv.setBigUint64(8, BigInt(denoSize + 1 + embedBundleSize));
-    await binary.write(pointers);
+    console.log("Adding embed payload trailer");
+    await writeTrailer({
+      binary,
+      magicTrailer: MAGIC_TRAILERS.EMBED,
+      bundleOffset: denoSize + 1,
+      metadataOffset: denoSize + 1 + embedBundleSize,
+    });
     embedPayloadWritten += 24;
   }
   // Add compiled payload (bundle+metadata)
   {
-    console.log("Readding original compile payload...");
+    console.log("Adding back the original compile payload");
     await Deno.writeAll(binary, compilePayloadBuffer);
   }
   // Add compiled trailer
   {
-    console.log("Signing compile payload with trailer...");
+    console.log("Adding compile payload trailer");
     const prev = layoutStart.compilePayload;
-    await binary.write(encoder.encode(MAGIC_TRAILERS.COMPILE));
-    const pointers = new Uint8Array(16);
-    const dv = new DataView(pointers.buffer);
-    dv.setBigUint64(0, BigInt(prev.bundleOffset + embedPayloadWritten));
-    dv.setBigUint64(8, BigInt(prev.metadataOffset + embedPayloadWritten));
-    await binary.write(pointers);
+    await writeTrailer({
+      binary,
+      magicTrailer: MAGIC_TRAILERS.COMPILE,
+      bundleOffset: prev.bundleOffset + embedPayloadWritten,
+      metadataOffset: prev.metadataOffset + embedPayloadWritten,
+    });
   }
   // Check
   console.log("Integrity check");
-  const layoutFinal = searchBinaryLayout(binary);
-  assert(layoutFinal.compilePayload !== false);
-  assert(layoutFinal.embedPayload !== false);
-  assertStrictEquals(
-    layoutFinal.compilePayload.bundleOffset,
+  let ok = true;
+  const a = (
+    assertion: typeof assert | typeof assertStrictEquals,
+    ...args: unknown[]
+  ) => {
+    try {
+      // @ts-ignore Shhh
+      assertion(...args);
+    } catch (e) {
+      ok = false;
+      console.log(JSON.stringify(e));
+      console.log(JSON.stringify(e.message));
+    }
+  };
+  const layoutFinal = readBinaryLayout(binary);
+  a(assert, layoutFinal.compilePayload !== false);
+  a(assert, layoutFinal.embedPayload !== false);
+  a(
+    assertStrictEquals,
+    layoutFinal.compilePayload && layoutFinal.compilePayload.bundleOffset,
     layoutStart.compilePayload.bundleOffset + embedPayloadWritten,
   );
-  assertStrictEquals(
-    layoutFinal.compilePayload.metadataOffset,
+  a(
+    assertStrictEquals,
+    layoutFinal.compilePayload && layoutFinal.compilePayload.metadataOffset,
     layoutStart.compilePayload.metadataOffset + embedPayloadWritten,
   );
-  console.log("Binary OK 📦✅");
+  if (ok) console.log("Binary OK 📦✅");
   binary.close();
 }

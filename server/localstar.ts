@@ -7,7 +7,7 @@ import { parse } from "https://deno.land/std/flags/mod.ts";
 import { serve } from "https://deno.land/std/http/server.ts";
 import { assert } from "https://deno.land/std/testing/asserts.ts";
 
-import { searchBinaryLayout } from "./utils/binary_layout.ts";
+import { readBinaryLayout } from "./utils/binary_layout.ts";
 
 import type {
   Response,
@@ -47,7 +47,7 @@ const decoder = new TextDecoder();
 
 // This file is never closed. The OS closes it on process exit
 const denoBinary = Deno.openSync(Deno.execPath(), { read: true });
-const denoLayout = searchBinaryLayout(denoBinary);
+const denoLayout = readBinaryLayout(denoBinary);
 const denoEmbedMetadata: EmbedHeader = {
   version: {
     deno: "No embed",
