@@ -4,7 +4,7 @@ import * as path from "https://deno.land/std/path/mod.ts";
 import { assert } from "https://deno.land/std/testing/asserts.ts";
 
 const isWindows = Deno.build.os === "windows";
-const osPath = (fsPath: string) =>
+const OS = (fsPath: string) =>
   isWindows ? fsPath.replaceAll("/", path.SEP) : fsPath;
 
 const sh = async (cmd: string, ...other: string[]) => {
@@ -13,14 +13,16 @@ const sh = async (cmd: string, ...other: string[]) => {
       .replaceAll(/(\n|\s)+/g, " ")
       .split(" "),
     ...other,
-  ].map(osPath);
+  ].map(OS);
   console.log("$", cmdArr.join(" "));
   const p = Deno.run({ cmd: cmdArr });
   await p.status();
 };
 
-const starboardDir = osPath("../starboard");
-const binDir = osPath("./bin");
+const starboardDir = OS("../starboard");
+// It's because I need it mounted at a lower level than --root...
+const starboardMountDir = OS(`${starboardDir}/starboard-notebook`);
+const binDir = OS("./bin");
 
 if (Deno.args.includes("update") || !await fs.exists(starboardDir)) {
   console.log("Fetching latest Starboard files");
@@ -39,14 +41,20 @@ if (Deno.args.includes("update") || !await fs.exists(starboardDir)) {
     for await (const chunk of res.body) await tgz.write(chunk);
     tgz.close();
   }
-  await sh(`tgz -xzvf ${tgzName}`);
-  await sh(`rm -r package/dist/src package/dist/test`);
-  await sh(`mv package/dist ${starboardDir}`);
+  // TODO: Windows?
+  await sh(`tar -xzvf ${tgzName}`);
+
+  for (const dir of ["package/dist/src", "package/dist/test"]) {
+    await Deno.remove(OS(dir), { recursive: true });
+  }
+  await fs.emptyDir(starboardDir);
+  await Deno.rename(OS("package/dist"), starboardMountDir);
+  await Deno.remove("package", { recursive: true });
 } else {
   console.log(`Using ${starboardDir} for Starboard files`);
 }
 
-Deno.removeSync(binDir, { recursive: true });
+await Deno.remove(binDir, { recursive: true });
 
 await sh(
   `deno run -A --unstable ./scripts/compile.ts --lite
@@ -63,5 +71,7 @@ await sh(
   `deno run -A --unstable ./scripts/embed.ts`,
   ...binaries,
   `--root=../client/build/`,
+  // Should have only one directory called "starboard-notebook"
+  // There should be no "Overwriting" warnings...
   `--root=${starboardDir}`,
 );
