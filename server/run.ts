@@ -23,7 +23,10 @@ Deno.removeSync(outdir, { recursive: true });
 
 await sh(
   `deno run -A --unstable ./scripts/compile.ts --lite
-    --output=${outdir}/[name]-[target]-${Deno.version.deno} ./localstar.ts`,
+    --output=${outdir}/[target]/[name]-${Deno.version.deno}
+    --allow-read
+    --allow-net
+    ./localstar.ts`,
 );
 const bins = [];
 for await (const file of fs.walk(osPath(outdir), { includeDirs: false })) {
