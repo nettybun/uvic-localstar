@@ -27,7 +27,7 @@ type BinaryLayout = {
 };
 
 const MAGIC_TRAILERS = {
-  COMPILE: "D3N0L4ND".toLowerCase(),
+  COMPILE: "d3n0l4nd",
   EMBED: "📦🧾",
 };
 
@@ -42,27 +42,27 @@ function readTrailer(options: {
   magicTrailer: string;
 }): BundleMetadataLayout | false {
   const { binary, offset, magicTrailer } = options;
+  console.group(`readTrailer for ${magicTrailer}`);
   const trailerBuffer = new Uint8Array(24);
   const trailerOffset = binary.seekSync(offset, Deno.SeekMode.Start);
   binary.readSync(trailerBuffer);
-  console.log(
-    `Reading 24 byte trailer for "${magicTrailer}" at ${asHex(trailerOffset)}`,
-  );
   const decodedMagic = decoder.decode(trailerBuffer.subarray(0, 8));
+  console.log(asHex(trailerOffset), `Magic: "${decodedMagic}"`);
   if (decodedMagic !== magicTrailer) {
-    console.log(`Magic was "${decodedMagic}"; bailing`);
+    console.log("Wrong trailer magic");
+    console.groupEnd();
     return false;
   }
   const dv = new DataView(trailerBuffer.buffer, 8);
   const bundleOffset = Number(dv.getBigUint64(0));
   const metadataOffset = Number(dv.getBigUint64(8));
-  console.log(
-    `Read 2x u64 pointers ${asHex(bundleOffset)}${asHex(metadataOffset)}`,
-  );
-
   const bundleLen = metadataOffset - bundleOffset;
   const metadataLen = trailerOffset - metadataOffset;
-
+  console.log(`OK. Layout from trailer:
+- Bundle:   [${asHex(bundleOffset)},${asHex(metadataOffset)})
+- Metadata: [${asHex(metadataOffset)},${asHex(trailerOffset)})
+- Trailer:  [${asHex(trailerOffset)},${asHex(trailerOffset + 24)})`);
+  console.groupEnd();
   return {
     bundleOffset,
     bundleLen,
@@ -78,19 +78,19 @@ async function writeTrailer(options: {
   metadataOffset: number;
 }): Promise<void> {
   const { binary, magicTrailer, bundleOffset, metadataOffset } = options;
+  console.group(`writeTrailer for ${magicTrailer}`);
   const currentOffset = await binary.seek(0, Deno.SeekMode.Current);
-  console.log(
-    `Writing magic "${magicTrailer}" at ${asHex(currentOffset)}`,
-  );
+  console.log(asHex(currentOffset), `Magic: "${magicTrailer}"`);
   await binary.write(encoder.encode(magicTrailer));
-  console.log(
-    `Writing 2x u64 pointers ${asHex(bundleOffset)}${asHex(metadataOffset)}`,
-  );
+  console.log(`2x u64 pointers:
+- Pointer to start of bundle: ${asHex(bundleOffset)}
+- Pointer to start of metadata: ${asHex(metadataOffset)}`);
   const pointers = new Uint8Array(16);
   const dv = new DataView(pointers.buffer);
   dv.setBigUint64(0, BigInt(bundleOffset));
   dv.setBigUint64(8, BigInt(metadataOffset));
   await binary.write(pointers);
+  console.groupEnd();
 }
 
 function readBinaryLayout(binary: Deno.File): BinaryLayout {
@@ -100,14 +100,16 @@ function readBinaryLayout(binary: Deno.File): BinaryLayout {
     offset: EOF - 24,
     magicTrailer: MAGIC_TRAILERS.COMPILE,
   });
-  // It's 100% unlikely that there's an embed payload and no compile payload,
-  // but check anyway...
-  const embedOffset = compilePayloadInfo
-    ? compilePayloadInfo.bundleOffset - 24
-    : EOF - 24;
+  if (compilePayloadInfo === false) {
+    return {
+      compilePayload: false,
+      embedPayload: false,
+    };
+  }
+  const denoEOF = compilePayloadInfo.bundleOffset;
   const embedPayloadInfo = readTrailer({
     binary,
-    offset: embedOffset,
+    offset: denoEOF - 24,
     magicTrailer: MAGIC_TRAILERS.EMBED,
   });
   return {
