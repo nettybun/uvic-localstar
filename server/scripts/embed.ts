@@ -105,9 +105,14 @@ const filesToBundle: Record<string, string> = {};
 for (const root of rootFolders) {
   for await (const file of fs.walk(root, { includeDirs: false })) {
     const embedPath = path.join("/", path.relative(root, file.path));
-    console.log(file.path, "=>", embedPath);
     if (filesToBundle[embedPath]) {
-      console.log(color.red(`⚠ Overwriting ${embedPath}`));
+      console.log(
+        color.red(
+          `⚠ File ${file.path} overwrites ${
+            filesToBundle[embedPath]
+          } for embed path ${embedPath}`,
+        ),
+      );
     }
     filesToBundle[embedPath] = file.path;
   }
@@ -139,7 +144,11 @@ for (const [embedPath, localPath] of Object.entries(filesToBundle)) {
   await Deno.copy(file, embedBundleDenoBuffer);
   file.close();
 }
-console.log(`Embed bundle is ${embedBundleDenoBuffer.length} bytes`);
+console.log(
+  `Embed bundle is ${
+    Object.keys(embedHeader.files).length
+  } files (${embedBundleDenoBuffer.length} bytes)`,
+);
 const embedBundleBuffer = await Deno.readAll(embedBundleDenoBuffer);
 console.log(embedHeader);
 
