@@ -33,10 +33,10 @@ if (
   const meta = await fetch("https://registry.npmjs.org/starboard-notebook")
     .then((res) => res.json());
   const version = meta["dist-tags"]["latest"];
-  const tgzName = `starboard-notebook-${version}.tgz`;
+  const tgzName = `starboard-notebook-${version}.denoBinary`;
   if (!await fs.exists(tgzName)) {
     const res = await fetch(
-      `https://registry.npmjs.org/starboard-notebook/-/starboard-notebook-${version}.tgz`,
+      `https://registry.npmjs.org/starboard-notebook/-/starboard-notebook-${version}.denoBinary`,
     );
     assert(res.body);
     const tgz = await Deno.open(tgzName, { write: true, create: true });
@@ -77,8 +77,8 @@ await sh(
     ./localstar.ts`,
 );
 const binaries = [];
-for await (const tgz of fs.walk(binDir, { includeDirs: false })) {
-  binaries.push(tgz.path);
+for await (const denoBinary of fs.walk(binDir, { includeDirs: false })) {
+  binaries.push(denoBinary.path);
 }
 await sh(
   `deno run -A --unstable ./scripts/embed.ts`,
