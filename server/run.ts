@@ -1,9 +1,11 @@
 #!/usr/bin/env -S deno run --allow-all --unstable
 import * as fs from "https://deno.land/std/fs/mod.ts";
-import { SEP } from "https://deno.land/std/path/mod.ts";
+import * as path from "https://deno.land/std/path/mod.ts";
+import { assert } from "https://deno.land/std/testing/asserts.ts";
 
 const isWindows = Deno.build.os === "windows";
-const osPath = (path: string) => isWindows ? path.replaceAll("/", SEP) : path;
+const osPath = (fsPath: string) =>
+  isWindows ? fsPath.replaceAll("/", path.SEP) : fsPath;
 
 const sh = async (cmd: string, ...other: string[]) => {
   const cmdArr = [
@@ -17,24 +19,49 @@ const sh = async (cmd: string, ...other: string[]) => {
   await p.status();
 };
 
-const outdir = "./bin";
+const starboardDir = osPath("../starboard");
+const binDir = osPath("./bin");
 
-Deno.removeSync(outdir, { recursive: true });
+if (Deno.args.includes("update") || !await fs.exists(starboardDir)) {
+  console.log("Fetching latest Starboard files");
+  const meta = await fetch("https://registry.npmjs.org/starboard-notebook")
+    .then((res) => res.json());
+  const version = meta["dist-tags"]["latest"];
+  const tgzName = `starboard-notebook-${version}.tgz`;
+  if (!await fs.exists(tgzName)) {
+    const res = await fetch(
+      `https://registry.npmjs.org/starboard-notebook/-/starboard-notebook-${version}.tgz`,
+    );
+    assert(res.body);
+    const tgz = await Deno.open(tgzName, { write: true, create: true });
+    const expected = Number(res.headers.get("content-length"));
+    console.log(`Downloading ${tgzName} (${expected} bytes)`);
+    for await (const chunk of res.body) await tgz.write(chunk);
+    tgz.close();
+  }
+  await sh(`tgz -xzvf ${tgzName}`);
+  await sh(`rm -r package/dist/src package/dist/test`);
+  await sh(`mv package/dist ${starboardDir}`);
+} else {
+  console.log(`Using ${starboardDir} for Starboard files`);
+}
+
+Deno.removeSync(binDir, { recursive: true });
 
 await sh(
   `deno run -A --unstable ./scripts/compile.ts --lite
-    --output=${outdir}/[target]/[name]-${Deno.version.deno}
+    --output=${binDir}/[target]/[name]-${Deno.version.deno}
     --allow-read
     --allow-net
     ./localstar.ts`,
 );
-const bins = [];
-for await (const file of fs.walk(osPath(outdir), { includeDirs: false })) {
-  bins.push(file.path);
+const binaries = [];
+for await (const tgz of fs.walk(binDir, { includeDirs: false })) {
+  binaries.push(tgz.path);
 }
 await sh(
   `deno run -A --unstable ./scripts/embed.ts`,
-  ...bins,
+  ...binaries,
   `--root=../client/build/`,
-  // `--root=../starboard/`,
+  `--root=${starboardDir}`,
 );
