@@ -88,6 +88,11 @@ const Notebook = () => {
                         title="Starboard Notebook Sandbox iFrame"
                         id="notebook-iframe"
                         src="starboard-notebook/index.html"
+                        // src="https://unpkg.com/starboard-notebook@0.7.16/dist/index.html"
+                        // checkOrigin={[
+                        //     "http://localhost:8080", // Useful for local development
+                        //     "https://unpkg.com", // Replace with where you are hosting the notebook iframe
+                        // ]}
                         frameBorder="0"
                         style={{ width: "100%", minWidth: "100%" }}
                     />

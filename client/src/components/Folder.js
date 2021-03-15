@@ -46,11 +46,6 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
             {
                 <>
                     <div
-                        onClick={() => {
-                            if (isHover) {
-                                setIsOpen(state => !state);
-                            }
-                        }}
                         className={`${
                             isHover ? "bg-gray-500 bg-opacity-10" : ""
                         } p-1  my-1 rounded-md h-auto transition-all`}
@@ -64,7 +59,14 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
                         }
                     >
                         <ContextMenuTrigger id={`folder-context-${id}`}>
-                            <div className="w-full cursor-pointer h-7 flex">
+                            <div
+                                className="w-full cursor-pointer h-7 flex"
+                                onClick={() => {
+                                    if (isHover) {
+                                        setIsOpen(state => !state);
+                                    }
+                                }}
+                            >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
                                     fill="none"
