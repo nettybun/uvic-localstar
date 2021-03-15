@@ -7,6 +7,6 @@ size-plugin.json
 # Server
 bin
 package
-starboard
+starboard*
 *.tgz
 *.tar.gz
