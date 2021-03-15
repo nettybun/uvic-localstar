@@ -7,7 +7,7 @@ import { parse } from "https://deno.land/std/flags/mod.ts";
 import { serve } from "https://deno.land/std/http/server.ts";
 import { assert } from "https://deno.land/std/testing/asserts.ts";
 
-import { readBinaryLayout } from "./utils/binary_layout.ts";
+import { asHex, readBinaryLayout } from "./utils/binary_layout.ts";
 
 import type {
   Response,
@@ -46,7 +46,9 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 // This file is never closed. The OS closes it on process exit
-const denoBinary = Deno.openSync(Deno.execPath(), { read: true });
+const denoBinary = Deno.openSync("bin/localstar_x86_64-unknown-linux-gnu", {
+  read: true,
+});
 const denoLayout = readBinaryLayout(denoBinary);
 const denoEmbedMetadata: EmbedHeader = {
   version: {
@@ -81,6 +83,9 @@ if (denoLayout.embedPayload === false) {
     // Walk
     let w = denoEmbedTree;
     for (const dir of dirs) {
+      if (dir === "") {
+        continue;
+      }
       if (!w[dir]) {
         w[dir] = {};
       }
@@ -91,6 +96,7 @@ if (denoLayout.embedPayload === false) {
     // Place file
     w[file] = filePath;
   }
+  console.log("DirTree:", denoEmbedTree);
 }
 
 const serverArgs = parse(Deno.args) as ServerArgs;
@@ -161,32 +167,31 @@ async function serveEmbed(fsPath: string): Promise<Response> {
   const embedInfo = denoEmbedMetadata.files[fsPath];
   // Stat:
   if (!embedInfo) {
-    const dirs = path.dirname(fsPath).split("/");
+    const dirs = fsPath.split("/");
     // This is allowed to be either a directory (DirItem) or a file (FileItem)
     // but since it wasn't in the denoEmbedMetadata it'll be a directory...
-    const goal = path.basename(fsPath);
     let w = denoEmbedTree;
     for (const dir of dirs) {
+      if (dir == "") {
+        continue;
+      }
       w = w[dir] as DirItem;
       if (typeof w === "string" || typeof w === "undefined") {
         // String if asking for a file in a file like a/b/c/index.html/d/
         throw new Deno.errors.NotFound();
       }
     }
-    const toStat = w[goal];
     // If it was a string, but not in denoEmbedMetadata, that'd be bad/weird
-    assert(typeof toStat !== "string");
-    if (!toStat) {
+    assert(typeof w !== "string");
+    if (!w) {
       throw new Deno.errors.NotFound();
     }
     // Directory listing
     const entries: Array<{ name: string; size: number | "" }> = [];
-    for (const [k, v] of Object.entries(toStat)) {
+    for (const [k, v] of Object.entries(w)) {
       entries.push({
         name: `${k}${typeof v !== "string" ? "/" : ""}`,
-        size: typeof v === "string"
-          ? (denoEmbedMetadata.files[`${fsPath}/${v}`].size)
-          : "",
+        size: typeof v === "string" ? (denoEmbedMetadata.files[v].size) : "",
       });
     }
     return serveJSON(entries);
@@ -194,6 +199,7 @@ async function serveEmbed(fsPath: string): Promise<Response> {
   let file = denoEmbedCache.get(fsPath);
   if (!file) {
     // Assumes all files (collectively) can be held in memory
+    console.log(`Reading ${fsPath} at ${asHex(embedInfo.offset)}`);
     file = await loadFromBinary(embedInfo.offset, embedInfo.size);
     denoEmbedCache.set(fsPath, file);
   }
@@ -303,15 +309,15 @@ console.log(`Starboard on http://${host}:${port}/`);
 for await (const request of server) {
   let response: Response;
   try {
-    const { url } = request;
-    if (/^\/version\/?$/.test(url)) {
+    const { url: urlPath } = request;
+    if (/^\/version\/?$/.test(urlPath)) {
       response = serveJSON(denoEmbedMetadata.version);
       continue;
     }
-    if (/^\/fs\/.*/.test(url)) {
+    if (/^\/fs\/.*/.test(urlPath)) {
       response = await serveLocal(
         request,
-        url.slice("/fs/".length),
+        urlPath.slice("/fs".length),
         localFilesystemRoot,
       );
       continue;
@@ -320,12 +326,12 @@ for await (const request of server) {
       console.log("No embed filesystem; passing through to local folder");
       response = await serveLocal(
         request,
-        url,
+        urlPath,
         embedFilesystemRoot,
       );
       continue;
     }
-    response = await serveEmbed(url);
+    response = await serveEmbed(urlPath);
   } catch (e) {
     console.error(e.message);
     response = serveFallback(e);
