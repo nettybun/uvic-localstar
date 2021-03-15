@@ -64,6 +64,8 @@ const toBytes = (human: string) => {
   return Number(number) * multiplier;
 };
 
+const encoder = new TextEncoder();
+
 const flags = parse(Deno.args, {
   boolean: ["dry-run", "help"],
   string: ["root", "limit"],
@@ -102,7 +104,7 @@ const limit = toBytes(String(flags.limit ?? "100MB"));
 const filesToBundle: Record<string, string> = {};
 for (const root of rootFolders) {
   for await (const file of fs.walk(root, { includeDirs: false })) {
-    const embedPath = path.relative(root, file.path);
+    const embedPath = path.join("/", path.relative(root, file.path));
     console.log(file.path, "=>", embedPath);
     if (filesToBundle[embedPath]) {
       console.log(color.red(`⚠ Overwriting ${embedPath}`));
@@ -118,26 +120,28 @@ const embedHeader: EmbedHeader = {
   },
   files: {},
 };
-let embedBundleSize = 0;
-const embedBundleBuffer = new Deno.Buffer();
+// XXX: Buffers can only be read _once_. I use readAll() after to get an proper
+// ArrayBuffer/Uint8Array that can be read multiple times
+const embedBundleDenoBuffer = new Deno.Buffer();
 for (const [embedPath, localPath] of Object.entries(filesToBundle)) {
   const { size } = await Deno.stat(localPath);
-  if (embedBundleSize + size > limit) {
+  if (embedBundleDenoBuffer.length + size > limit) {
     console.log(
-      color.red(`⚠ Size limit reached. Stopped at ${embedBundleSize}`),
+      color.red(`⚠ Size limit reached: ${embedBundleDenoBuffer.length} bytes`),
     );
     break;
   }
+  embedHeader.files[embedPath] = {
+    offset: embedBundleDenoBuffer.length,
+    size,
+  };
   const file = await Deno.open(localPath);
-  await Deno.copy(file, embedBundleBuffer);
-  embedHeader.files[embedPath] = { size, offset: embedBundleSize };
-  embedBundleSize += size;
+  await Deno.copy(file, embedBundleDenoBuffer);
   file.close();
 }
+console.log(`Embed bundle is ${embedBundleDenoBuffer.length} bytes`);
+const embedBundleBuffer = await Deno.readAll(embedBundleDenoBuffer);
 console.log(embedHeader);
-console.log(`Embed bundle is ${embedBundleSize} bytes`);
-
-const encoder = new TextEncoder();
 
 for (const binaryPath of binaries) {
   console.log(`\n${color.bgWhite(color.black(`Binary: ${binaryPath}`))}`);
@@ -159,22 +163,17 @@ for (const binaryPath of binaries) {
   const { bundleLen, bundleOffset, metadataLen, metadataOffset } =
     layoutStart.compilePayload;
 
-  const EOF = await binary.seek(0, Deno.SeekMode.End);
+  // This is where things get weird. currentEOF will return an offset to the RIGHT of
+  // the last data byte. So a 21 byte file has data at 0x00...0x14 (20b) which
+  // is 0x15 bytes (21b) but currentEOF=0x15 which IS NOT data.
 
-  console.table({
-    bundleOffset: asHex(bundleOffset),
-    metadataOffset: asHex(metadataOffset),
-    trailerOffset: asHex(EOF - 24),
-    EOF: asHex(EOF),
-  });
+  let currentEOF = await binary.seek(0, Deno.SeekMode.End);
+
+  // This is it. This is the moment.
+  const denoEOF = bundleOffset;
 
   const compilePayloadBuffer = new Uint8Array(bundleLen + metadataLen);
-  await binary.seek(
-    bundleOffset,
-    Deno.SeekMode.Start,
-  );
-  // TODO: Is this really the best way to read N bytes from a file? Feels like a
-  // lot of code. Using `file.read(uintarray)` will stop at 16384 bytes.
+  await binary.seek(bundleOffset, Deno.SeekMode.Start);
   let n = 0;
   while (n < bundleLen + metadataLen) {
     const nread = await binary.read(compilePayloadBuffer.subarray(n));
@@ -182,27 +181,29 @@ for (const binaryPath of binaries) {
     n += nread;
   }
   assertStrictEquals(n, bundleLen + metadataLen);
-  const denoSize = bundleOffset - 1;
-  console.log(`Deno binary layout:
-  - Deno size: ${denoSize}
-  - Bundle/JS size: ${bundleLen} from ${asHex(bundleOffset)} to ${
-    asHex(bundleOffset + bundleLen)
-  }
-  - Metadata/JSON size: ${metadataLen} from ${asHex(metadataOffset)} to ${
-    asHex(metadataOffset + metadataLen)
-  }`);
+  console.log(`Sizes:
+  - Deno: [0x00,${asHex(denoEOF)})
+  - Compile bundle/JS: ${bundleLen} bytes
+  - Compile metadata/JSON: ${metadataLen} bytes`);
 
-  // Truncate so the binary is only Deno
-  await Deno.truncate(binaryPath, denoSize);
+  // Truncate so the binary is only Deno. Parameter is currentEOF aka the ghost byte
+  // which is not a real data offset
+  await Deno.truncate(binaryPath, denoEOF);
+  currentEOF = await binary.seek(0, Deno.SeekMode.End);
+  assertStrictEquals(denoEOF, currentEOF);
 
   // To adjust the u64s from layoutStart; size includes embed trailer+u64s
-  let embedPayloadWritten = 0;
+  let embedPayloadSize = 0;
 
   // Add embed bundle
-  await binary.seek(0, Deno.SeekMode.End);
   {
-    await Deno.copy(embedBundleBuffer, binary);
-    embedPayloadWritten += embedBundleSize;
+    await Deno.writeAll(binary, embedBundleBuffer);
+    console.log(
+      `Wrote embed bundle [${asHex(currentEOF)},${
+        asHex(currentEOF = await binary.seek(0, Deno.SeekMode.End))
+      })`,
+    );
+    embedPayloadSize += embedBundleBuffer.length;
   }
   // Add embed metadataBuffer with adjusted offsets
   {
@@ -213,39 +214,56 @@ for (const binaryPath of binaries) {
     for (const [embedPath, o] of Object.entries(embedHeader.files)) {
       customEmbedHeader.files[embedPath] = {
         size: o.size,
-        offset: o.offset + denoSize,
+        offset: o.offset + denoEOF,
       };
     }
     const metadataBuffer = encoder.encode(JSON.stringify(customEmbedHeader));
     await Deno.writeAll(binary, metadataBuffer);
-    embedPayloadWritten += metadataBuffer.byteLength;
+    console.log(
+      `Wrote embed metadata [${asHex(currentEOF)},${
+        asHex(currentEOF = await binary.seek(0, Deno.SeekMode.End))
+      })`,
+    );
+    embedPayloadSize += metadataBuffer.length;
   }
   // Add embed trailer
   {
-    console.log("Adding embed payload trailer");
     await writeTrailer({
       binary,
       magicTrailer: MAGIC_TRAILERS.EMBED,
-      bundleOffset: denoSize + 1,
-      metadataOffset: denoSize + 1 + embedBundleSize,
+      bundleOffset: denoEOF,
+      metadataOffset: denoEOF + embedBundleBuffer.length,
     });
-    embedPayloadWritten += 24;
+    console.log(
+      `Wrote embed trailer [${asHex(currentEOF)},${
+        asHex(currentEOF = await binary.seek(0, Deno.SeekMode.End))
+      })`,
+    );
+    embedPayloadSize += 24;
   }
   // Add compiled payload (bundle+metadata)
   {
-    console.log("Adding back the original compile payload");
     await Deno.writeAll(binary, compilePayloadBuffer);
+    console.log(
+      `Wrote compile bundle+metadata [${asHex(currentEOF)},${
+        asHex(currentEOF = await binary.seek(0, Deno.SeekMode.End))
+      })`,
+    );
   }
   // Add compiled trailer
   {
-    console.log("Adding compile payload trailer");
     const prev = layoutStart.compilePayload;
     await writeTrailer({
       binary,
       magicTrailer: MAGIC_TRAILERS.COMPILE,
-      bundleOffset: prev.bundleOffset + embedPayloadWritten,
-      metadataOffset: prev.metadataOffset + embedPayloadWritten,
+      bundleOffset: prev.bundleOffset + embedPayloadSize,
+      metadataOffset: prev.metadataOffset + embedPayloadSize,
     });
+    console.log(
+      `Wrote compile trailer [${asHex(currentEOF)},${
+        asHex(currentEOF = await binary.seek(0, Deno.SeekMode.End))
+      })`,
+    );
   }
   // Check
   console.log("Integrity check");
@@ -257,10 +275,11 @@ for (const binaryPath of binaries) {
     try {
       // @ts-ignore Shhh
       assertion(...args);
+      console.log(assertion.name, "PASSED");
     } catch (e) {
       ok = false;
-      console.log(JSON.stringify(e));
-      console.log(JSON.stringify(e.message));
+      console.log(assertion.name, "FAILED");
+      console.log(e);
     }
   };
   const layoutFinal = readBinaryLayout(binary);
@@ -269,12 +288,12 @@ for (const binaryPath of binaries) {
   a(
     assertStrictEquals,
     layoutFinal.compilePayload && layoutFinal.compilePayload.bundleOffset,
-    layoutStart.compilePayload.bundleOffset + embedPayloadWritten,
+    layoutStart.compilePayload.bundleOffset + embedPayloadSize,
   );
   a(
     assertStrictEquals,
     layoutFinal.compilePayload && layoutFinal.compilePayload.metadataOffset,
-    layoutStart.compilePayload.metadataOffset + embedPayloadWritten,
+    layoutStart.compilePayload.metadataOffset + embedPayloadSize,
   );
   if (ok) console.log("Binary OK 📦✅");
   binary.close();
