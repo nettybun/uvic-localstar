@@ -46,9 +46,7 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 // This file is never closed. The OS closes it on process exit
-const denoBinary = Deno.openSync("bin/localstar_x86_64-unknown-linux-gnu", {
-  read: true,
-});
+const denoBinary = Deno.openSync(Deno.execPath(), { read: true });
 const denoLayout = readBinaryLayout(denoBinary);
 const denoEmbedMetadata: EmbedHeader = {
   version: {
