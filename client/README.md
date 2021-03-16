@@ -32,7 +32,7 @@ TailwindCSS gives us a great range of CSS utilities/classes while also boasting 
 
 In order to run the Starboard editor provided by the Starboad-Notebook project, an Iframe is required. This library provides a simple wrapper around an Iframe that allows it to be used in React compatible applications such as this one.
 
-
+*NOTE:*
 This project uses [NPM](https://www.npmjs.com/) for its dependency maangement. This needs to be installed before running any of the following commands.
 ## Install
 To install dependencies:
