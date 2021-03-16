@@ -9,7 +9,8 @@ This is the single page application that provides the UI for Localstar and the S
 - [Development](#development)
 - [Build](#build)
 
-
+## Screenshot
+![Screenshot of Localstar](https://imgur.com/p0MbIbR.png "Screenshot of Localstar")
 
 ## Technologies
 
