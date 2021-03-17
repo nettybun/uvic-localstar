@@ -4,87 +4,130 @@ import * as path from "https://deno.land/std/path/mod.ts";
 import * as color from "https://deno.land/std/fmt/colors.ts";
 import { assert } from "https://deno.land/std/testing/asserts.ts";
 
-const isWindows = Deno.build.os === "windows";
-const OS = (fsPath: string) =>
-  isWindows ? fsPath.replaceAll("/", path.SEP) : fsPath;
+import { Untar } from "https://deno.land/std/archive/tar.ts";
+import { gunzipSync } from "https://cdn.skypack.dev/fflate";
 
-const sh = async (cmd: string, ...other: string[]) => {
-  const cmdArr = [
-    ...cmd
-      .replaceAll(/(\n|\s)+/g, " ")
-      .split(" "),
-    ...other,
-  ].map(OS);
-  console.log("$", cmdArr.join(" "));
-  const p = Deno.run({ cmd: cmdArr });
-  await p.status();
-};
+// Windows knows how to process "/" paths so it's easier to convert to standard
+// forward slash paths instead of "\\". https://www.npmjs.com/package/slash
+const slash = (fsPath: string) => fsPath.replaceAll("\\", "/");
 
-const starboardDir = OS("../starboard");
-// It's because I need it mounted at a lower level than --root...
-const starboardMountDir = OS(`${starboardDir}/starboard-notebook`);
-const binDir = OS("./bin");
+const starboardDownloadDir = "../starboard";
+const starboardUnpackDir = `${starboardDownloadDir}/starboard-notebook`;
+const localstarBinDir = "./bin";
 
-if (
-  Deno.args.includes("update") ||
-  !await fs.exists(starboardMountDir)
-) {
-  console.log("Fetching latest Starboard files");
-  const meta = await fetch("https://registry.npmjs.org/starboard-notebook")
-    .then((res) => res.json());
-  const version = meta["dist-tags"]["latest"];
-  const tgzName = `starboard-notebook-${version}.denoBinary`;
-  if (!await fs.exists(tgzName)) {
-    const res = await fetch(
-      `https://registry.npmjs.org/starboard-notebook/-/starboard-notebook-${version}.denoBinary`,
-    );
-    assert(res.body);
-    const tgz = await Deno.open(tgzName, { write: true, create: true });
-    const expected = Number(res.headers.get("content-length"));
-    console.log(`Downloading ${tgzName} (${expected} bytes)`);
-    for await (const chunk of res.body) await tgz.write(chunk);
-    tgz.close();
-  }
-  // TODO: Windows?
-  try {
-    await sh(`tar -xzvf ${tgzName}`);
+// XXX: Maybe Deno.parse() and have --help etc etc
+const argStarboardVersion = Deno.args[0] ?? "latest";
 
-    for (const dir of ["package/dist/src", "package/dist/test"]) {
-      await Deno.remove(OS(dir), { recursive: true });
-    }
-    await fs.emptyDir(starboardDir);
-    await Deno.rename(OS("package/dist"), starboardMountDir);
-    await Deno.remove("package", { recursive: true });
-  } catch (e) {
-    console.log(
-      color.red(`Couldn't unpack the download`),
-      "Are you on Windows? Try unpacking the download manually into a folder " +
-        `called ${starboardMountDir}`,
-    );
-    console.log(e);
-  }
-} else {
-  console.log(`Using ${starboardMountDir} for Starboard files`);
+async function fetchStarboardLatestVersion(): Promise<string> {
+  const res = await fetch(
+    "https://registry.npmjs.org/starboard-notebook",
+  );
+  const data = await res.json();
+  return data["dist-tags"]["latest"];
 }
 
-await Deno.remove(binDir, { recursive: true });
+async function fetchStarboardTgz(version: string): Promise<Uint8Array> {
+  const res = await fetch(
+    `https://registry.npmjs.org/starboard-notebook/-/starboard-notebook-${version}.tgz`,
+  );
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+if (!await fs.exists(starboardUnpackDir)) {
+  console.log(`No Starboard directory at "${starboardUnpackDir}"; installing`);
+
+  // Get version
+  let version;
+  if (argStarboardVersion === "latest") {
+    version = await fetchStarboardLatestVersion();
+    console.log(`Fetched latest version of Starboard: ${version}`);
+  } else {
+    version = argStarboardVersion;
+  }
+
+  // Get tgz
+  const tgzPath = `${starboardDownloadDir}/starboard-notebook-${version}.tgz`;
+  let tgzData: Uint8Array;
+  if (await fs.exists(tgzPath)) {
+    console.log(`Reading local ${version} tgz`);
+    const tgzFile = await Deno.open(tgzPath, { read: true });
+    tgzData = await Deno.readAll(tgzFile);
+    tgzFile.close();
+  } else {
+    console.log(`Downloading ${version} tgz`);
+    tgzData = await fetchStarboardTgz(version);
+    await fs.ensureFile(tgzPath);
+    const tgzFile = await Deno.open(tgzPath, { write: true });
+    await Deno.writeAll(tgzFile, tgzData);
+    tgzFile.close();
+  }
+
+  // Ungzip
+  const tarData = gunzipSync(tgzData) as Uint8Array;
+
+  // Unpack tar to folder
+  const untar = new Untar(new Deno.Buffer(tarData));
+  for await (const entry of untar) {
+    const name = entry.fileName;
+    assert(name.startsWith("package"));
+    const isDir = entry.type === "directory";
+    const isSkip = name.startsWith("package/dist") === false ||
+      name.startsWith("package/dist/src") ||
+      name.startsWith("package/dist/test");
+
+    console.log(isSkip ? "📛" : `✅`, `${name}${isDir ? `/` : ""}`);
+    if (isSkip) continue;
+
+    const fsPath = path.join(
+      starboardUnpackDir,
+      name.replace(/^package\/dist/, ""),
+    );
+    if (isDir) {
+      await fs.ensureDir(fsPath);
+      continue;
+    }
+    await fs.ensureFile(fsPath);
+    console.log(`   => ${fsPath}`);
+    const file = await Deno.open(fsPath, { write: true });
+    await Deno.copy(entry, file);
+    file.close();
+  }
+} else {
+  console.log(`Found Starboard files at "${starboardUnpackDir}"`);
+}
+
+console.log(`Removing Localstar binaries at "${localstarBinDir}"`);
+await fs.emptyDir(localstarBinDir);
 
 await sh(
   `deno run -A --unstable ./scripts/compile.ts --lite
-    --output=${binDir}/[target]/[name]-${Deno.version.deno}
+    --output=${localstarBinDir}/[target]/[name]-${Deno.version.deno}
     --allow-read
     --allow-net
     ./localstar.ts`,
 );
 const binaries = [];
-for await (const denoBinary of fs.walk(binDir, { includeDirs: false })) {
-  binaries.push(denoBinary.path);
+for await (const bin of fs.walk(localstarBinDir, { includeDirs: false })) {
+  binaries.push(bin.path);
 }
 await sh(
   `deno run -A --unstable ./scripts/embed.ts`,
   ...binaries,
   `--root=../client/build/`,
-  // Should have only one directory called "starboard-notebook"
-  // There should be no "Overwriting" warnings...
-  `--root=${starboardDir}`,
+  // XXX: This needs to line up with what the client expects
+  // TODO: @Dylan should you keep Starboard files in client/ and install them as
+  // part of an npm post-install script? That way you can dev with them locally
+  `--root=${starboardDownloadDir}`,
 );
+
+async function sh(cmd: string, ...other: string[]) {
+  const cmdArr = [
+    ...cmd
+      .replaceAll(/(\n|\s)+/g, " ")
+      .split(" "),
+    ...other,
+  ].map(slash);
+  console.log(color.brightBlue("Run"), cmdArr.join(" "));
+  const p = Deno.run({ cmd: cmdArr });
+  await p.status();
+}
