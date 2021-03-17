@@ -52,7 +52,6 @@ const Notebook = () => {
 
     const onMessage = messageData => {
         if (messageData.message.type === "NOTEBOOK_READY_SIGNAL") {
-            console.log(fileRef.current.content);
             iframeRef.current.sendMessage({
                 type: "NOTEBOOK_SET_INIT_DATA",
                 payload: fileRef.current,
