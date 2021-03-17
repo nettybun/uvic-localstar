@@ -7,14 +7,14 @@ import { parse } from "https://deno.land/std/flags/mod.ts";
 import { serve } from "https://deno.land/std/http/server.ts";
 import { assert } from "https://deno.land/std/testing/asserts.ts";
 
-import { asHex, readBinaryLayout } from "./utils/binary_layout.ts";
+import { asHex, readBinaryLayout } from "./lib/binary_layout.ts";
 
 import type {
   Response,
   ServerRequest,
 } from "https://deno.land/std/http/server.ts";
 
-import type { EmbedHeader } from "./utils/embed_header.ts";
+import type { EmbedHeader } from "./lib/embed_header.ts";
 
 interface ServerArgs {
   _: string[];
@@ -307,7 +307,7 @@ console.log(`Starboard on http://${host}:${port}/`);
 for await (const request of server) {
   let response: Response;
   try {
-    const { url: urlPath } = request;
+    let { url: urlPath } = request;
     if (/^\/version\/?$/.test(urlPath)) {
       response = serveJSON(denoEmbedMetadata.version);
       continue;
@@ -320,6 +320,11 @@ for await (const request of server) {
       );
       continue;
     }
+
+    if (urlPath === "/") {
+      urlPath = "/index.html";
+    }
+
     if (denoLayout.embedPayload === false) {
       console.log("No embed filesystem; passing through to local folder");
       response = await serveLocal(
@@ -327,9 +332,9 @@ for await (const request of server) {
         urlPath,
         embedFilesystemRoot,
       );
-      continue;
+    } else {
+      response = await serveEmbed(urlPath);
     }
-    response = await serveEmbed(urlPath);
   } catch (e) {
     console.error(e.message);
     response = serveFallback(e);

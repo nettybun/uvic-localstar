@@ -87,12 +87,4 @@ Flags:
 
 For now the entire virtual filesystem is held in memory before writing it to the
 binary since it's likely written to multiple binaries. Roots can overwrite files
-as they merge. TODO(Grant): You'll see a warning about this if it happens.
-
-### `info.ts`
-
-Prints info about the magic trailers in a Deno binary.
-
-```
-./scripts/info.ts ./bin/localstar
-```
+as they merge. You'll see a warning about this if it happens.

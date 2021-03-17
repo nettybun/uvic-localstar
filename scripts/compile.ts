@@ -3,7 +3,9 @@
 import * as path from "https://deno.land/std/path/mod.ts";
 import * as fs from "https://deno.land/std/fs/mod.ts";
 import * as color from "https://deno.land/std/fmt/colors.ts";
-import { exit } from "../utils/exit.ts";
+
+import { bytesToHuman } from "../deno/lib/byte_size.ts";
+import { exit } from "../deno/lib/exit.ts";
 
 if (!import.meta.main) {
   throw new Error(`Don't import this`);
@@ -134,9 +136,12 @@ for (const target of targets) {
   console.log(`Exit: ${status.code}`);
   if (status.success) {
     try {
-      console.log("Size:", (await Deno.stat(outputForTarget)).size);
+      console.log(
+        "Size:",
+        bytesToHuman((await Deno.stat(outputForTarget)).size),
+      );
     } catch (err) {
-      console.log("Error checking size:", err);
+      console.log("Error when checking size:", err);
     }
   }
   console.groupEnd();

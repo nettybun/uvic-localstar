@@ -4,9 +4,8 @@ build
 *.log
 size-plugin.json
 
-# Server
+# Deno
 bin
-package
-starboard*
+starboard-dist
 *.tgz
 *.tar.gz

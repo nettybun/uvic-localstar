@@ -9,15 +9,16 @@ import {
   assertStrictEquals,
 } from "https://deno.land/std/testing/asserts.ts";
 
+import { exit } from "../deno/lib/exit.ts";
+import { bytesToHuman, bytesToNumber } from "../deno/lib/byte_size.ts";
 import {
   asHex,
   MAGIC_TRAILERS,
   readBinaryLayout,
   writeTrailer,
-} from "../utils/binary_layout.ts";
-import { exit } from "../utils/exit.ts";
+} from "../deno/lib/binary_layout.ts";
 
-import type { EmbedHeader } from "../utils/embed_header.ts";
+import type { EmbedHeader } from "../deno/lib/embed_header.ts";
 
 if (!import.meta.main) {
   throw new Error(`Don't import this`);
@@ -45,24 +46,9 @@ Options:
 Examples:
 
   > ./embed.ts --root=./dir1 --root=./dir2 --limit=20MB ./bin/*
-  > ./embed.ts --root=/path/to/folder --limit=20MB --dry-run ./localstar
+  > ./embed.ts --root=/path/to/folder --limit=20MB ./localstar
 `);
 }
-
-// Helper
-const toBytes = (human: string) => {
-  const match = human.match(/^(\d+)([KMG]?B?)$/i);
-  if (!match) return (`Unknown limit ${human}`);
-  const [, number, unit] = match;
-  const multiplier = {
-    B: 1,
-    K: 1 << 10,
-    M: 1 << 20,
-    G: 1 << 30,
-  }[unit.toUpperCase()[0] || "B"];
-  if (!multiplier) return (`Unknown limit unit "${unit}"`);
-  return Number(number) * multiplier;
-};
 
 const encoder = new TextEncoder();
 
@@ -99,7 +85,7 @@ if (Array.isArray(flags.limit)) {
 
 const binaries = flags._;
 const rootFolders = Array.isArray(flags.root) ? flags.root : [flags.root];
-const limit = toBytes(String(flags.limit ?? "100MB"));
+const limit = bytesToNumber(String(flags.limit ?? "100MB"));
 
 for (const root of rootFolders) {
   if (!await fs.exists(root) || !(await Deno.stat(root)).isDirectory) {
@@ -151,9 +137,9 @@ for (const [embedPath, localPath] of Object.entries(filesToBundle)) {
   file.close();
 }
 console.log(
-  `Embed bundle is ${
-    Object.keys(embedHeader.files).length
-  } files (${embedBundleDenoBuffer.length} bytes)`,
+  `Embed bundle is ${Object.keys(embedHeader.files).length} files (${
+    bytesToHuman(embedBundleDenoBuffer.length)
+  })`,
 );
 const embedBundleBuffer = await Deno.readAll(embedBundleDenoBuffer);
 console.log(embedHeader);
@@ -197,9 +183,9 @@ for (const binaryPath of binaries) {
   }
   assertStrictEquals(n, bundleLen + metadataLen);
   console.log(`Sizes:
-  - Deno: [0x00,${asHex(denoEOF)})
-  - Compile bundle/JS: ${bundleLen} bytes
-  - Compile metadata/JSON: ${metadataLen} bytes`);
+  - Deno [0x00,${asHex(denoEOF)}): ${bytesToHuman(denoEOF)}
+  - Compile bundle/JS: ${bytesToHuman(bundleLen)}
+  - Compile metadata/JSON: ${bytesToHuman(metadataLen)}`);
 
   // Truncate so the binary is only Deno. Parameter is currentEOF aka the ghost byte
   // which is not a real data offset
