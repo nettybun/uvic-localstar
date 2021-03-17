@@ -13,7 +13,7 @@ import initialState from "./initialState";
 const projectReducer = (state = initialState.project, action) => {
     switch (action.type) {
         case READ_PROJECT_SUCCESS: {
-            let fileSystem = project.fileSystem.map(item => {
+            let fileSystem = action.project.fileSystem.map(item => {
                 if (item.size === "")
                     return {
                         ...item,
@@ -26,7 +26,10 @@ const projectReducer = (state = initialState.project, action) => {
                         type: "file",
                     };
             });
-            return action.project;
+            return {
+                ...action.project,
+                fileSystem,
+            };
         }
         case DELETE_FOLDER_SUCCESS:
         case DELETE_FILE_SUCCESS: {
