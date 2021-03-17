@@ -47,6 +47,7 @@ jobs:
           !client/build/**/*.map
   server-build:
     runs-on: ${{ matrix.os }}
+    needs: client-build
     strategy:
       matrix:
         os:
