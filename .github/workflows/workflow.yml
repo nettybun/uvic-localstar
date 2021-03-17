@@ -108,8 +108,8 @@ jobs:
       if: matrix.os == 'ubuntu-20.04'
       uses: actions/upload-artifact@v2
       with:
-        name: localstar-x86_64-pc-windows-msvc
-        path: bin/localstar-x86_64-pc-windows-msvc
+        name: localstar-x86_64-pc-windows-msvc.exe
+        path: bin/localstar-x86_64-pc-windows-msvc.exe
     - name: Archive Linux
       if: matrix.os == 'ubuntu-20.04'
       uses: actions/upload-artifact@v2
