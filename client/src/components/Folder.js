@@ -211,7 +211,6 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
                                     setShowModal={setShowUpdateFolderModal}
                                     folder={{
                                         name,
-                                        content,
                                         id,
                                         type: "folder",
                                     }}

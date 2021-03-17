@@ -40,7 +40,7 @@ const Notebook = () => {
                 setLoadingFile(false);
                 if (fileIsReady) {
                     iframeRef.current.sendMessage({
-                        type: "RELOAD",
+                        type: "NOTEBOOK_RELOAD_PAGE",
                     });
                 }
                 setFileIsReady(true);
@@ -51,10 +51,10 @@ const Notebook = () => {
     }, [loadingFile, file, currentFileID, fileIsReady, dispatch]);
 
     const onMessage = messageData => {
-        if (messageData.message.type === "SIGNAL_READY") {
+        if (messageData.message.type === "NOTEBOOK_READY_SIGNAL") {
             iframeRef.current.sendMessage({
-                type: "SET_NOTEBOOK_CONTENT",
-                data: fileRef.current.content,
+                type: "NOTEBOOK_SET_INIT_DATA",
+                payload: fileRef.current,
             });
 
             // Whenever the notebook content gets changed (e.g. a character is typed)
@@ -63,12 +63,12 @@ const Notebook = () => {
             dispatch(
                 updateFileContentDispatch(
                     fileRef.current,
-                    messageData.message.data
+                    messageData.message.payload.content
                 )
             );
 
             //     // This signal is sent when a save shortcut (e.g. cmd+s on mac) is pressed.
-        } else if (messageData.message.type === "SAVE") {
+        } else if (messageData.message.type === "NOTEBOOK_SAVE_REQUEST") {
             // setNotebookContent(messageData.message.data);
         }
     };
@@ -87,12 +87,12 @@ const Notebook = () => {
                         onMessage={onMessage}
                         title="Starboard Notebook Sandbox iFrame"
                         id="notebook-iframe"
-                        src="starboard-notebook/index.html"
-                        // src="https://unpkg.com/starboard-notebook@0.7.16/dist/index.html"
-                        // checkOrigin={[
-                        //     "http://localhost:8080", // Useful for local development
-                        //     "https://unpkg.com", // Replace with where you are hosting the notebook iframe
-                        // ]}
+                        // src="starboard-notebook/index.html"
+                        src="https://unpkg.com/starboard-notebook@0.7.17/dist/index.html"
+                        checkOrigin={[
+                            "http://localhost:8080", // Useful for local development
+                            "https://unpkg.com", // Replace with where you are hosting the notebook iframe
+                        ]}
                         frameBorder="0"
                         style={{ width: "100%", minWidth: "100%" }}
                     />

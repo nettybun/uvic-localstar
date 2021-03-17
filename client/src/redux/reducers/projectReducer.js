@@ -72,7 +72,7 @@ const projectReducer = (state = initialState.project, action) => {
                 name: action.name,
             };
         case UPDATE_FILE_SUCCESS: {
-            let newFileSystem = { ...state.fileSystem };
+            let newFileSystem = state.fileSystem;
             const updateFilesystem = fileSystem => {
                 return fileSystem.map(item => {
                     if (item.type === "file") {
@@ -94,7 +94,7 @@ const projectReducer = (state = initialState.project, action) => {
             };
         }
         case UPDATE_FOLDER_SUCCESS: {
-            let newFileSystem = { ...state.fileSystem };
+            let newFileSystem = state.fileSystem;
             const updateFilesystem = fileSystem => {
                 return fileSystem.map(item => {
                     if (item.type === "file") {
