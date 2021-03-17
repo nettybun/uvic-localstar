@@ -7,48 +7,48 @@ on:
         branches: [main]
 
 jobs:
-    client-build:
-        runs-on: ${{ matrix.os }}
-        strategy:
-            matrix:
-                os:
-                    - ubuntu-latest
-                    # Mac is 5x slower than Linux here... I don't want to wait 5m for a webpack build
-                    # - macos-latest
-                node-version:
-                    - 15.x
-        defaults:
-            run:
-                working-directory: ./client
-        steps:
-            - uses: actions/checkout@v2
-            - name: Setup Node ${{ matrix.os }} ${{ matrix.node-version }}
-              uses: actions/setup-node@v2
-              with:
-                  node-version: ${{ matrix.node-version }}
-            - name: Setup Node dependency cache
-              uses: actions/cache@v2
-              with:
-                  # Cache files are stored in `~/.npm` on Linux/macOS
-                  path: ~/.npm
-                  key: ${{ runner.OS }}-node-${{ hashFiles('**/package-lock.json') }}
-                  restore-keys: |
-                      ${{ runner.OS }}-node-
-                      ${{ runner.OS }}-
-            - run: npm ci
-            - run: npm run build
-            - run: npm test
-            - name: Archive client build
-              uses: actions/upload-artifact@v2
-              with:
-                  name: client-build
-                  # Even though this has "working-directory: client" it needs a full path...
-                  path: |
-                      client/build
-                      !client/build/**/*.map
+    # client-build:
+    #     runs-on: ${{ matrix.os }}
+    #     strategy:
+    #         matrix:
+    #             os:
+    #                 - ubuntu-latest
+    #                 # Mac is 5x slower than Linux here... I don't want to wait 5m for a webpack build
+    #                 # - macos-latest
+    #             node-version:
+    #                 - 15.x
+    #     defaults:
+    #         run:
+    #             working-directory: ./client
+    #     steps:
+    #         - uses: actions/checkout@v2
+    #         - name: Setup Node ${{ matrix.os }} ${{ matrix.node-version }}
+    #           uses: actions/setup-node@v2
+    #           with:
+    #               node-version: ${{ matrix.node-version }}
+    #         - name: Setup Node dependency cache
+    #           uses: actions/cache@v2
+    #           with:
+    #               # Cache files are stored in `~/.npm` on Linux/macOS
+    #               path: ~/.npm
+    #               key: ${{ runner.OS }}-node-${{ hashFiles('**/package-lock.json') }}
+    #               restore-keys: |
+    #                   ${{ runner.OS }}-node-
+    #                   ${{ runner.OS }}-
+    #         - run: npm ci
+    #         - run: npm run build
+    #         - run: npm test
+    #         - name: Archive client build
+    #           uses: actions/upload-artifact@v2
+    #           with:
+    #               name: client-build
+    #               # Even though this has "working-directory: client" it needs a full path...
+    #               path: |
+    #                   client/build
+    #                   !client/build/**/*.map
     server-build:
         runs-on: ${{ matrix.os }}
-        needs: client-build
+        # needs: client-build
         strategy:
             matrix:
                 os:
@@ -60,15 +60,23 @@ jobs:
                 working-directory: ./server
         steps:
             - uses: actions/checkout@v2
-            - name: Download the client files
-              uses: actions/download-artifact@v2
+            # - name: Download the client files
+            #   uses: actions/download-artifact@v2
+            #   with:
+            #       name: client-build
+            - name: Setup Starboard cache
+              uses: actions/cache@v2
               with:
-                  name: client-build
+                  path: ./starboard
+                  key: starboard
             - name: Windows Deno install
               if: matrix.os == 'windows-latest'
+              # Add to Windows $PATH
+              # https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#adding-a-system-path
               run: |
                   $env:DENO_INSTALL = "C:\Program Files\deno"
                   iwr https://deno.land/x/install/install.ps1 -useb | iex
+                  echo "$DENO_INSTALL" >> $GITHUB_PATH
                   deno --version
                   dir
             - name: Nix Deno install
@@ -79,7 +87,7 @@ jobs:
                   ls -l
             - name: Windows passover
               if: matrix.os == 'windows-latest'
-              run: deno run --unstable -A ./run.ts
+              run: deno run --unstable --allow-all ./run.ts
             - name: Nix passover
               if: matrix.os != 'windows-latest'
               run: ./run.ts
