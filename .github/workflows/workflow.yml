@@ -91,7 +91,7 @@ jobs:
       shell: bash
       run: |
         ./scripts/embed.ts --root=./client/build --root=./starboard-dist \
-          bin/localstar-*
+          --root=./starboard-notebooks bin/localstar-*
     - name: Archive Apple ARM 64
       if: matrix.os == 'ubuntu-20.04'
       uses: actions/upload-artifact@v2
