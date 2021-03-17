@@ -13,7 +13,8 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          - macos-latest
+          # Mac is 5x slower than Linux here... I don't want to wait 5m for a webpack build
+          # - macos-latest
         node-version:
           - 15.x
     defaults:
@@ -76,8 +77,12 @@ jobs:
         curl -fsSL https://deno.land/x/install/install.sh | sudo DENO_INSTALL=/usr/local sh
         deno --version
         ls -l
-    - name: Pass off to internal script
-      run: deno run -A ./run.ts
+    - name: Windows passover
+      if: matrix.os == 'windows-latest'
+      run: deno run --unstable -A ./run.ts
+    - name: Nix passover
+      if: matrix.os != 'windows-latest'
+      run: ./run.ts
     - name: Archive binaries
       uses: actions/upload-artifact@v2
       with:
