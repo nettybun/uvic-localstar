@@ -76,7 +76,7 @@ jobs:
               run: |
                   $env:DENO_INSTALL = "C:\Program Files\deno"
                   iwr https://deno.land/x/install/install.ps1 -useb | iex
-                  echo "$DENO_INSTALL" >> $GITHUB_PATH
+                  echo "C:\Program Files\deno\bin" >> $GITHUB_PATH
                   deno --version
                   dir
             - name: Nix Deno install
