@@ -1,7 +1,4 @@
-# This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
-
-name: Client build
+name: Build
 
 on:
   push:
@@ -48,3 +45,40 @@ jobs:
         path: |
           client/build
           !client/build/**/*.map
+  server-build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    defaults:
+      run:
+        working-directory: ./server
+    steps:
+    - uses: actions/checkout@v2
+    - name: Download the client files
+      uses: actions/download-artifact@v2
+      with:
+        name: client-build
+    - name: Windows Deno install
+      if: matrix.os == 'windows-latest'
+      run: |
+        $env:DENO_INSTALL = "C:\Program Files\deno"
+        iwr https://deno.land/x/install/install.ps1 -useb | iex
+        deno --version
+        dir
+    - name: Nix Deno install
+      if: matrix.os != 'windows-latest'
+      run: |
+        curl -fsSL https://deno.land/x/install/install.sh | sudo DENO_INSTALL=/usr/local sh
+        deno --version
+        ls -l
+    - name: Pass off to internal script
+      run: deno run -A ./run.ts
+    - name: Archive binaries
+      uses: actions/upload-artifact@v2
+      with:
+        name: localstar-binaries
+        path: server/bin/**
