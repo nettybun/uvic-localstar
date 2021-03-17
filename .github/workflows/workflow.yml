@@ -12,8 +12,12 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - uses: ./.github/actions/deno
-    - run: |
-      TODO: Does preact/dev load public directory?
+    - name: Setup Starboard cache
+      uses: actions/cache@v2
+      with:
+        path: ./starboard-dist
+        key: starboard
+    - run: ./scripts/starboard.ts latest
   client-build:
     runs-on: ubuntu-20.04
     defaults:
@@ -69,8 +73,15 @@ jobs:
     - name: Test?
       run: deno test deno/lib/byte_size.ts
 
-    - name: Build assuming client/build exists
-      run: ./run.sh
+    - name: Compile all
+      run: |
+        ./scripts/compile.ts --lite --output=bin/localstar-[target] \
+          --allow-read --allow-net ./deno/localstar_server.ts
+
+    - name: Embed all
+      run: |
+        ./scripts/embed.ts --root=./client/build --root=./starboard-dist \
+          bin/localstar-*
 
     - name: Archive Apple ARM 64
       if: matrix.os == 'ubuntu-latest'
