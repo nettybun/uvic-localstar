@@ -94,19 +94,23 @@ jobs:
               if: matrix.os == 'ubuntu-latest'
               uses: actions/upload-artifact@v2
               with:
+                  name: aarch64-apple-darwin-localstar
                   path: server/bin/aarch64-apple-darwin/localstar-*
             - name: Archive Apple x86-64
               if: matrix.os == 'ubuntu-latest'
               uses: actions/upload-artifact@v2
               with:
+                  name: x86_64-apple-darwin-localstar
                   path: server/bin/x86_64-apple-darwin/localstar-*
             - name: Archive Windows
               if: matrix.os == 'ubuntu-latest'
               uses: actions/upload-artifact@v2
               with:
-                  path: server/bin/x86_64-pc-windows-msvc/localstar-*.exe
+                  name: x86_64-pc-windows-msvc-localstar
+                  path: server/bin/x86_64-pc-windows-msvc/localstar-*
             - name: Archive Linux
               if: matrix.os == 'ubuntu-latest'
               uses: actions/upload-artifact@v2
               with:
+                  name: x86_64-unknown-linux-gnu-localstar
                   path: server/bin/x86_64-unknown-linux-gnu/localstar-*
