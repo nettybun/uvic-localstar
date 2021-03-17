@@ -44,6 +44,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: client-build
+        # Even though this has "working-directory: client" it needs a full path...
         path: |
-          build
-          !build/**/*.map
+          client/build
+          !client/build/**/*.map
