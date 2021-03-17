@@ -1,3 +1,8 @@
+# This file doesn't run. You can check git history for the thousand ways I've
+# tried to get GitHub to set $PATH and do shell scripting. It's a nightmare. Sad
+# thing is I knew it would be since I've lived in this hell for years, so
+# everything is in Deno scripts. Still, I wanted to avoid "denolib/setup-deno".
+
 name: Setup Deno
 description: Minimal installation of Deno plus actions/cache
 runs:
