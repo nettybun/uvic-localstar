@@ -67,7 +67,10 @@ if (!await fs.exists(starboardUnpackDir)) {
 
   // Unpack tar to folder
   const untar = new Untar(new Deno.Buffer(tarData));
+  let totalCount = 0;
+  let unpackedCount = 0;
   for await (const entry of untar) {
+    totalCount++;
     const name = entry.fileName;
     assert(name.startsWith("package"));
     const isDir = entry.type === "directory";
@@ -75,7 +78,6 @@ if (!await fs.exists(starboardUnpackDir)) {
       name.startsWith("package/dist/src") ||
       name.startsWith("package/dist/test");
 
-    console.log(isSkip ? "📛" : `✅`, `${name}${isDir ? `/` : ""}`);
     if (isSkip) continue;
 
     const fsPath = path.join(
@@ -87,11 +89,15 @@ if (!await fs.exists(starboardUnpackDir)) {
       continue;
     }
     await fs.ensureFile(fsPath);
-    console.log(`   => ${fsPath}`);
+    console.log("Unpack:", fsPath);
+    unpackedCount++;
     const file = await Deno.open(fsPath, { write: true });
     await Deno.copy(entry, file);
     file.close();
   }
+  console.log(
+    `Unpacked ${unpackedCount}/${totalCount} files from tgz ${tgzPath}`,
+  );
 } else {
   console.log(`Found Starboard files at "${starboardUnpackDir}"`);
 }

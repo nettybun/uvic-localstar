@@ -61,6 +61,7 @@ jobs:
               uses: actions/download-artifact@v2
               with:
                   name: client-build
+                  path: client/build
             - name: Setup Starboard cache
               uses: actions/cache@v2
               with:
