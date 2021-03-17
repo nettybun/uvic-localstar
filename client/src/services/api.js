@@ -1,7 +1,14 @@
 import { project, files } from "./objects";
 
-export const readProject = () => {
-    return project;
+export const readProject = async () => {
+    let fileSystem = await fetch("/fs/");
+
+    return {
+        name: "SENG499",
+        authors: ["Dylan", "Michelle", "Grant"],
+        dateCreated: Date.now(),
+        fileSystem: fileSystem.json(),
+    };
 };
 
 export const readFile = id => {

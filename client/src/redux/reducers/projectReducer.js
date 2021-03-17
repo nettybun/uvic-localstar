@@ -12,8 +12,22 @@ import initialState from "./initialState";
 
 const projectReducer = (state = initialState.project, action) => {
     switch (action.type) {
-        case READ_PROJECT_SUCCESS:
+        case READ_PROJECT_SUCCESS: {
+            let fileSystem = project.fileSystem.map(item => {
+                if (item.size === "")
+                    return {
+                        ...item,
+                        name: item.name.slice(0, -1),
+                        type: "folder",
+                    };
+                else
+                    return {
+                        ...item,
+                        type: "file",
+                    };
+            });
             return action.project;
+        }
         case DELETE_FOLDER_SUCCESS:
         case DELETE_FILE_SUCCESS: {
             let newFileSystem = state.fileSystem;

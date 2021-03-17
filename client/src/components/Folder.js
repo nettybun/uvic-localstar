@@ -8,6 +8,7 @@ import { makeSelectFolders, makeSelectFiles } from "../services/selectors";
 import CreateFolderModal from "./CreateFolderModal";
 import RenameFolderModal from "./RenameFolderModal";
 import { deleteFolderDispatch } from "../redux/actions/projectActions";
+import { h, Fragment } from "preact";
 
 const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
     const [isHover, setIsHover] = useState(false);
@@ -108,25 +109,6 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
                                 isOpen ? "scale-y-100 h-auto opacity-100" : ""
                             }`}
                         >
-                            {/* {content.map(item => {
-                                if (item.type === "file") {
-                                    return (
-                                        <File
-                                            currentHover={currentHover}
-                                            setCurrentHover={setCurrentHover}
-                                            {...item}
-                                            parentID={id}
-                                        />
-                                    );
-                                }
-                                return (
-                                    <Folder
-                                        {...item}
-                                        currentHover={currentHover}
-                                        setCurrentHover={setCurrentHover}
-                                    />
-                                );
-                            })} */}
                             {folders.map(item => (
                                 <Folder
                                     {...item}

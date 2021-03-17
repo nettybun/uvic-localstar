@@ -50,11 +50,9 @@ const deleteFolderSuccess = id => {
 };
 
 export const readProjectDispatch = () => {
-    return dispatch => {
-        let project = readProject();
-        setTimeout(() => {
-            dispatch(readProjectSuccess(project));
-        }, Math.random() * 25);
+    return async dispatch => {
+        let project = await readProject();
+        dispatch(readProjectSuccess(project));
     };
 };
 
