@@ -93,25 +93,25 @@ jobs:
         ./scripts/embed.ts --root=./client/build --root=./starboard-dist \
           bin/localstar-*
     - name: Archive Apple ARM 64
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu-20.04'
       uses: actions/upload-artifact@v2
       with:
         name: localstar-aarch64-apple-darwin
         path: bin/localstar-aarch64-apple-darwin
     - name: Archive Apple x86-64
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu-20.04'
       uses: actions/upload-artifact@v2
       with:
         name: localstar-x86_64-apple-darwin
         path: bin/localstar-x86_64-apple-darwin
     - name: Archive Windows
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu-20.04'
       uses: actions/upload-artifact@v2
       with:
-        name: localstar-x86_64-pc-windows-msvc
-        path: bin/localstar-x86_64-pc-windows-msvc
+        name: localstar-x86_64-pc-windows-msvc.exe
+        path: bin/localstar-x86_64-pc-windows-msvc.exe
     - name: Archive Linux
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu-20.04'
       uses: actions/upload-artifact@v2
       with:
         name: localstar-x86_64-unknown-linux-gnu
