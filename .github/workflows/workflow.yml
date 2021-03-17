@@ -20,6 +20,12 @@ jobs:
         path: ./starboard-dist
         key: starboard
     - run: ./scripts/starboard.ts latest
+    - name: Archive dist files for Starboard
+      uses: actions/upload-artifact@v2
+      with:
+        name: starboard-dist
+        path: starboard-dist/starboard-notebook
+
   client-build:
     runs-on: ubuntu-20.04
     defaults:
@@ -47,6 +53,7 @@ jobs:
         path: |
           client/build
           !client/build/**/*.map
+
   server-build:
     runs-on: ${{ matrix.os }}
     needs: client-build
@@ -61,53 +68,44 @@ jobs:
     - uses: denolib/setup-deno@v2
       with:
         deno-version: v1.8.1
-
-    - name: Download client
+    - name: Download artifact for client
       uses: actions/download-artifact@v2
       with:
         name: client-build
         path: client/build
-
-    - name: Setup Starboard cache
-      uses: actions/cache@v2
+    - name: Download artifact for Starboard
+      uses: actions/download-artifact@v2
       with:
-        path: ./starboard-dist
-        key: starboard
-
+        name: starboard-dist
+        path: starboard-dist/starboard-notebook
     - name: Test?
       run: deno test deno/lib/byte_size.ts
-
     - name: Compile all
       run: |
         ./scripts/compile.ts --lite --output=bin/localstar-[target] \
           --allow-read --allow-net ./deno/localstar_server.ts
-
     - name: Embed all
       run: |
         ./scripts/embed.ts --root=./client/build --root=./starboard-dist \
           bin/localstar-*
-
     - name: Archive Apple ARM 64
       if: matrix.os == 'ubuntu-latest'
       uses: actions/upload-artifact@v2
       with:
         name: localstar-aarch64-apple-darwin
         path: bin/localstar-aarch64-apple-darwin
-
     - name: Archive Apple x86-64
       if: matrix.os == 'ubuntu-latest'
       uses: actions/upload-artifact@v2
       with:
         name: localstar-x86_64-apple-darwin
         path: bin/localstar-x86_64-apple-darwin
-
     - name: Archive Windows
       if: matrix.os == 'ubuntu-latest'
       uses: actions/upload-artifact@v2
       with:
         name: localstar-x86_64-pc-windows-msvc
         path: bin/localstar-x86_64-pc-windows-msvc
-
     - name: Archive Linux
       if: matrix.os == 'ubuntu-latest'
       uses: actions/upload-artifact@v2
