@@ -10,7 +10,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  client-build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -20,6 +20,9 @@ jobs:
         node-version:
           - 14.x
           - 15.x
+    defaults:
+      run:
+        working-directory: ./client
     steps:
     - uses: actions/checkout@v2
     - name: Setup Node ${{ matrix.os }} ${{ matrix.node-version }}
@@ -35,7 +38,6 @@ jobs:
         restore-keys: |
           ${{ runner.OS }}-node-
           ${{ runner.OS }}-
-    - run: cd client/
     - run: npm ci
     - run: npm run build
     - run: npm test
