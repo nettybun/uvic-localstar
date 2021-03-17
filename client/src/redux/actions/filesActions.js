@@ -39,12 +39,19 @@ export const createFileDispatch = (name, parentID) => {
 
 export const readFileDispatch = id => {
     return dispatch => {
-        fetch('/notebooks/introduction.sbnb')
+        fetch("/notebooks/introduction.sbnb")
             .then(res => res.text())
             .then(text => {
-                console.log(`Dispatching with ${text.slice(0, 100)}...`)
-                dispatch(readFileSucess(text));
-            })
+                console.log(`Dispatching with ${text.slice(0, 100)}...`);
+                dispatch(
+                    readFileSucess({
+                        content: text,
+                        type: "file",
+                        id,
+                        name: "introduction.sbnb",
+                    })
+                );
+            });
     };
 };
 
