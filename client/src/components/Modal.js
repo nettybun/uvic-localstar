@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import { h } from "preact";
 
 const Modal = ({ show, children }) => {
     const [visible, setVisible] = useState(false);
