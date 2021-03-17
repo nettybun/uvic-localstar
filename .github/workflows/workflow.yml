@@ -90,8 +90,23 @@ jobs:
                   deno --version
                   cd server
                   ./run.ts
-            - name: Archive binaries
+            - name: Archive Apple ARM 64
+              if: matrix.os == 'ubuntu-latest'
               uses: actions/upload-artifact@v2
               with:
-                  name: localstar-binaries
-                  path: server/bin/**
+                  path: server/bin/aarch64-apple-darwin/localstar-1.8.0
+            - name: Archive Apple x86-64
+              if: matrix.os == 'ubuntu-latest'
+              uses: actions/upload-artifact@v2
+              with:
+                  path: server/bin/x86_64-apple-darwin/localstar-1.8.0
+            - name: Archive Windows
+              if: matrix.os == 'ubuntu-latest'
+              uses: actions/upload-artifact@v2
+              with:
+                  path: server/bin/x86_64-pc-windows-msvc/localstar-1.8.0.exe
+            - name: Archive Linux
+              if: matrix.os == 'ubuntu-latest'
+              uses: actions/upload-artifact@v2
+              with:
+                  path: server/bin/x86_64-unknown-linux-gnu/localstar-1.8.0
