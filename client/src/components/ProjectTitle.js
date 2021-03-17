@@ -1,3 +1,4 @@
+import { h } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { useDispatch } from "react-redux";
 import { updateProjectDispatch } from "../redux/actions/projectActions";
@@ -52,6 +53,7 @@ const ProjectTitle = ({ name }) => {
             )}
 
             <div
+                data-testid="editButton"
                 onClick={handleIconClick}
                 className={`inline-block my-auto p-1 hover:bg-gray-300 ${
                     edit ? "text-gray-600" : "text-gray-400"
