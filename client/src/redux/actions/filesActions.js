@@ -39,10 +39,12 @@ export const createFileDispatch = (name, parentID) => {
 
 export const readFileDispatch = id => {
     return dispatch => {
-        const file = readFile(id);
-        setTimeout(() => {
-            dispatch(readFileSucess(file));
-        }, Math.random() * 25);
+        fetch('/notebooks/introduction.sbnb')
+            .then(res => res.text())
+            .then(text => {
+                console.log(`Dispatching with ${text.slice(0, 100)}...`)
+                dispatch(readFileSucess(text));
+            })
     };
 };
 

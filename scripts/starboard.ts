@@ -13,7 +13,9 @@ if (!import.meta.main) {
   throw new Error(`Don't import this`);
 }
 
-const starboardDownloadDir = "./starboard-dist";
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
+const rootDir = `${__dirname}/..`;
+const starboardDownloadDir = `${rootDir}/starboard-dist`;
 const starboardUnpackDir = `${starboardDownloadDir}/starboard-notebook`;
 
 // XXX: Maybe Deno.parse() and have --help etc etc
@@ -34,9 +36,22 @@ async function fetchStarboardTgz(version: string): Promise<Uint8Array> {
   return new Uint8Array(await res.arrayBuffer());
 }
 
+async function copyStarboardFilesToClientDir() {
+  // TODO: @Dylan...
+  const clientDir = `${rootDir}/client`;
+  const cp: typeof fs.copy = (src, dest) =>
+    fs.copy(src, dest, { overwrite: true });
+  await cp(starboardUnpackDir, `${clientDir}/src/starboard-notebook`);
+  await cp(starboardUnpackDir, `${clientDir}/build/starboard-notebook`);
+  await cp(`${rootDir}/notebooks`, `${clientDir}/src/notebooks`);
+  await cp(`${rootDir}/notebooks`, `${clientDir}/build/notebooks`);
+  console.log(`Copied to ${clientDir}/{src,build}`);
+}
+
 if (argStarboardVersion === "latest") {
   if (await fs.exists(starboardUnpackDir)) {
     console.log(`Found Starboard files at ${starboardUnpackDir}`);
+    await copyStarboardFilesToClientDir();
     Deno.exit(0);
   }
   console.log(`No Starboard directory at ${starboardUnpackDir}; installing`);
@@ -112,3 +127,5 @@ console.log(`Sizes for Starboard ${version}:
   - TAR: ${bytesToHuman(tarData.length)}
   - Unpacked: ${bytesToHuman(bytesWritten)}
 `);
+
+await copyStarboardFilesToClientDir();
