@@ -101,6 +101,12 @@ const binaries = flags._;
 const rootFolders = Array.isArray(flags.root) ? flags.root : [flags.root];
 const limit = toBytes(String(flags.limit ?? "100MB"));
 
+for (const root of rootFolders) {
+  if (!await fs.exists(root) || !(await Deno.stat(root)).isDirectory) {
+    throw exit(1, `Given --root isn't a directory: "${root}"`);
+  }
+}
+
 const filesToBundle: Record<string, string> = {};
 for (const root of rootFolders) {
   for await (const file of fs.walk(root, { includeDirs: false })) {
