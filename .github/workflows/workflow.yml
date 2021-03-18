@@ -84,14 +84,12 @@ jobs:
               # Bash on Windows?!
               shell: bash
               run: |
-                  ./scripts/compile.ts --lite --output=bin/localstar-[target] \
-                    --allow-all ./deno/localstar_server.ts
+                  ./scripts/compile.ts --lite --output=bin/localstar-[target] ./deno/localstar_server.ts
             - name: Embed all
               # Bash on Windows?!
               shell: bash
               run: |
-                  ./scripts/embed.ts --root=./client/build --root=./starboard-dist \
-                    --root=./starboard-notebooks bin/localstar-*
+                  ./scripts/embed.ts --root=./client/build --root=./starboard-dist --root=./starboard-notebooks bin/localstar-*
             - name: Archive Apple ARM 64
               if: matrix.os == 'ubuntu-20.04'
               uses: actions/upload-artifact@v2
