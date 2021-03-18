@@ -13,6 +13,7 @@ import initialState from "./initialState";
 const projectReducer = (state = initialState.project, action) => {
     switch (action.type) {
         case READ_PROJECT_SUCCESS: {
+            console.log(action.project);
             let fileSystem = action.project.fileSystem.map(item => {
                 if (item.size === "")
                     return {
