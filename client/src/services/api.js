@@ -2,7 +2,7 @@ import { project, files } from "./objects";
 
 export const readProject = async () => {
     let fileSystem = await fetch("/fs/");
-
+    console.log(fileSystem.json());
     return {
         name: "SENG499",
         authors: ["Dylan", "Michelle", "Grant"],
