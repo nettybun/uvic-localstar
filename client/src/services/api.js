@@ -4,6 +4,7 @@ export const readProject = () => {
     let response = fetch("/fs/")
         .then(res => res.json())
         .then(data => {
+            console.log(data);
             return {
                 name: "SENG499",
                 authors: ["Dylan", "Michelle", "Grant"],
