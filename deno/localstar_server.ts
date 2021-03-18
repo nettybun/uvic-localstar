@@ -6,6 +6,7 @@ import * as path from "https://deno.land/std/path/mod.ts";
 import { parse } from "https://deno.land/std/flags/mod.ts";
 import { serve } from "https://deno.land/std/http/server.ts";
 import { assert } from "https://deno.land/std/testing/asserts.ts";
+import { open } from "https://deno.land/x/opener/mod.ts";
 
 import { asHex, readBinaryLayout } from "./lib/binary_layout.ts";
 
@@ -303,6 +304,7 @@ const server = serve({
   port,
 });
 console.log(`Starboard on http://${host}:${port}/`);
+await open(`http://${host}:${port}/`)
 
 for await (const request of server) {
   let response: Response;
