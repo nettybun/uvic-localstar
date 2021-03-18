@@ -85,7 +85,7 @@ jobs:
               shell: bash
               run: |
                   ./scripts/compile.ts --lite --output=bin/localstar-[target] \
-                    --allow-read --allow-net ./deno/localstar_server.ts
+                    --allow-all ./deno/localstar_server.ts
             - name: Embed all
               # Bash on Windows?!
               shell: bash
