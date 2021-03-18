@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-all
+#!/usr/bin/env -S deno run --allow-net --allow-read --allow-run
 
 // Adapted from https://deno.land/std/http/file_server.ts
 
