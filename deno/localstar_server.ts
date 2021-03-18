@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-net --allow-read --allow-run
+#!/usr/bin/env -S deno run --allow-all
 
 // Adapted from https://deno.land/std/http/file_server.ts
 
@@ -295,7 +295,7 @@ function normalizeURL(url: string): string {
   return startOfParams > -1 ? normalized.slice(0, startOfParams) : normalized;
 }
 
-const host = serverArgs.host ?? "0.0.0.0";
+const host = serverArgs.host ?? Deno.build.os === "windows" ? "localhost" : "0.0.0.0";
 const port = serverArgs.port ?? 4507;
 const cors = serverArgs.cors;
 
