@@ -210,9 +210,36 @@ describe("project reducer", () => {
         expect(
             projectReducer(initialState.project, {
                 type: READ_PROJECT_SUCCESS,
-                project,
+                project: {
+                    ...project,
+                    fileSystem: [
+                        {
+                            name: "folder/",
+                            size: "",
+                        },
+                        {
+                            name: "file",
+                            size: 789,
+                        },
+                    ],
+                },
             })
-        ).toEqual(project);
+        ).toEqual({
+            ...project,
+            fileSystem: [
+                {
+                    name: "folder",
+                    type: "folder",
+                    id: "folder/",
+                    content: [],
+                },
+                {
+                    name: "file",
+                    id: "file",
+                    type: "file",
+                },
+            ],
+        });
     });
     it("should handle DELETE_FILE_SUCCESS", () => {
         //Delete nested file

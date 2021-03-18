@@ -1,4 +1,5 @@
 import { useState, useEffect } from "preact/hooks";
+import { h } from "preact";
 
 const Header = () => {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -74,7 +75,8 @@ const Header = () => {
                         </div>
                         <div className="flex-1 flex items-center justify-center sm:items-stretch sm:justify-start">
                             <div className="hidden sm:flex flex-grow  ">
-                                <div
+                                <button
+                                    type="button"
                                     onClick={() => window.location.reload()}
                                     className="flex-shrink-0 items-center flex hover:bg-gray-700 p-2 rounded-md cursor-pointer transition-colors"
                                 >
@@ -95,7 +97,7 @@ const Header = () => {
                                     <div className="text-2xl localTitle font-bold text-white ml-2 tracking-wide	">
                                         Local
                                     </div>
-                                </div>
+                                </button>
                             </div>
                             <div className=" mx-6 py-2 opacity-20" />
                             <div className="hidden sm:block ">
@@ -107,6 +109,7 @@ const Header = () => {
                                         Documentation
                                     </a>
                                     <a
+                                        aria-label="Github Link"
                                         href="https://github.com/heyheyhello/uvic-localstar"
                                         className={`text-gray-300 hover:bg-gray-700 hover:text-white p-2 rounded-md text-sm font-medium transition-colors`}
                                     >

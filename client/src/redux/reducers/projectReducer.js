@@ -17,14 +17,14 @@ const projectReducer = (state = initialState.project, action) => {
             let fileSystem = action.project.fileSystem.map(item => {
                 if (item.size === "")
                     return {
-                        ...item,
-                        id: item.name.slice(0, -1),
-                        name: item.name,
+                        id: item.name,
+                        name: item.name.slice(0, -1),
                         type: "folder",
+                        content: [],
                     };
                 else
                     return {
-                        ...item,
+                        name: item.name,
                         id: item.name,
                         type: "file",
                     };

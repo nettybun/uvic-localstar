@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import { h, Fragment } from "preact";
 import { useDispatch } from "react-redux";
 import { ContextMenu, ContextMenuTrigger, MenuItem } from "preact-context-menu";
 import { SELECT_FILE } from "../redux/actions/actionTypes";
