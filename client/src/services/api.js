@@ -12,8 +12,16 @@ export const readProject = async () => {
     };
 };
 
-export const readFile = id => {
-    return files[id];
+export const readFile = async id => {
+    let response = await fetch(`/fs/${id}`);
+    let text = await response.text();
+
+    return {
+        id,
+        name: id,
+        type: "file",
+        content: text,
+    };
 };
 
 export const createFile = name => {

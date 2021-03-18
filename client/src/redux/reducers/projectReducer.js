@@ -18,12 +18,14 @@ const projectReducer = (state = initialState.project, action) => {
                 if (item.size === "")
                     return {
                         ...item,
-                        name: item.name.slice(0, -1),
+                        id: item.name.slice(0, -1),
+                        name: item.name,
                         type: "folder",
                     };
                 else
                     return {
                         ...item,
+                        id: item.name,
                         type: "file",
                     };
             });

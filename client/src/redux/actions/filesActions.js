@@ -38,11 +38,9 @@ export const createFileDispatch = (name, parentID) => {
 };
 
 export const readFileDispatch = id => {
-    return dispatch => {
-        const file = readFile(id);
-        setTimeout(() => {
-            dispatch(readFileSucess(file));
-        }, Math.random() * 25);
+    return async dispatch => {
+        const file = await readFile(id);
+        dispatch(readFileSucess(file));
     };
 };
 
