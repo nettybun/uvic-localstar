@@ -1,14 +1,16 @@
 import { project, files } from "./objects";
 
-export const readProject = async () => {
-    let fileSystem = await fetch("/fs/");
-    console.log(fileSystem.json());
-    return {
-        name: "SENG499",
-        authors: ["Dylan", "Michelle", "Grant"],
-        dateCreated: Date.now(),
-        fileSystem: fileSystem.json(),
-    };
+export const readProject = () => {
+    let response = await fetch("/fs/").then(res => res.text()).then(text => {
+        console.log(text)
+        return {
+            name: "SENG499",
+            authors: ["Dylan", "Michelle", "Grant"],
+            dateCreated: Date.now(),
+            fileSystem: JSON.parse(text) //i guess json doesnt wana do?
+        };
+    })
+    
 };
 
 export const readFile = id => {
