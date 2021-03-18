@@ -44,7 +44,7 @@ jobs:
                   key: npm-${{ hashFiles('**/package-lock.json') }}
             - run: npm ci
             - run: npm run build
-            # - run: npm test
+            - run: npm test
             - name: Archive client build
               uses: actions/upload-artifact@v2
               with:
