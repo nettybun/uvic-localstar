@@ -69,7 +69,7 @@ const Header = () => {
                                     </svg>
                                 )}
                             </button>
-                            <div className="text-2xl localTitle font-bold text-white ml-2 tracking-wide	">
+                            <div className="text-2xl font-InterBold font-bold text-white ml-2 tracking-wide	">
                                 Local
                             </div>
                         </div>
@@ -94,7 +94,7 @@ const Header = () => {
                                             ></path>
                                         </g>
                                     </svg>
-                                    <div className="text-2xl localTitle font-bold text-white ml-2 tracking-wide	">
+                                    <div className="text-2xl font-InterBold font-bold text-white ml-2 tracking-wide	">
                                         Local
                                     </div>
                                 </button>
@@ -104,7 +104,7 @@ const Header = () => {
                                 <div className="flex space-x-4 items-center">
                                     <a
                                         href="https://docs.google.com/document/d/1TKgbpxhf1jFz2x_1iKnv-q7FWlXrflTXuiZlgUEOl5E/edit"
-                                        className={`text-gray-300 hover:bg-gray-700 hover:text-white p-2 rounded-md text-lg font-medium transition-colors tracking-wide`}
+                                        className={`text-gray-300 hover:bg-gray-700 hover:text-white p-2 rounded-md text-lg font-InterRegular transition-colors tracking-wide`}
                                     >
                                         Documentation
                                     </a>
