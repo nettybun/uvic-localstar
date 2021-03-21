@@ -13,11 +13,21 @@ const filesReducer = (state = initialState.files, action) => {
                 ...state,
                 [action.item.id]: action.item,
             };
-        case READ_FILE_SUCCESS:
+        case READ_FILE_SUCCESS: {
+            let matches = action.file.id.match(/[^/]+$/g);
+            console.log(matches);
+            let name;
+            if (matches) {
+                name = matches[0];
+            }
             return {
                 ...state,
-                [action.file.id]: action.file,
+                [action.file.id]: {
+                    ...action.file,
+                    name,
+                },
             };
+        }
         case UPDATE_FILE_SUCCESS:
             return {
                 ...state,

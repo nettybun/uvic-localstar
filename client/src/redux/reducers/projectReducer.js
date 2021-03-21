@@ -92,6 +92,7 @@ const projectReducer = (state = initialState.project, action) => {
                 name: action.name,
             };
         case UPDATE_FILE_SUCCESS: {
+            console.log(action.file);
             let newFileSystem = state.fileSystem;
             const updateFilesystem = fileSystem => {
                 return fileSystem.map(item => {

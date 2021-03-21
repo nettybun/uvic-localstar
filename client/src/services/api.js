@@ -24,7 +24,7 @@ export const readFile = async id => {
 
     return {
         id,
-        name: id,
+        name: "",
         type: "file",
         content: text,
     };
