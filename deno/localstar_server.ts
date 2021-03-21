@@ -328,13 +328,20 @@ for await (const request of server) {
         const fsPath = path.join(localFilesystemRoot, normalizeURL(urlPath.slice("/fs".length)));
         const buf: Uint8Array = await Deno.readAll(request.body);
         let body = JSON.parse(new TextDecoder().decode(buf))
-
-        await Deno.writeTextFile(fsPath,body.content)
-        response = serveJSON(body)
-        continue
+        if(body.type === "file"){
+          await Deno.writeTextFile(fsPath,body.content)
+          response = serveJSON(body)
+          continue
+        }else if(body.type === "folder"){
+          await Deno.mkdir(fsPath, { recursive: true })
+          response = serveJSON(body)
+          continue
+        }
+        
+        
       }else if(request.method === 'PUT'){
         
-        // update file
+        // update file, same as 'POST' for now. But keep them seperate for a little while longer?
         const fsPath = path.join(localFilesystemRoot, normalizeURL(urlPath.slice("/fs".length)));
         const buf: Uint8Array = await Deno.readAll(request.body);
         let body = JSON.parse(new TextDecoder().decode(buf))
@@ -344,6 +351,14 @@ for await (const request of server) {
         continue
 
         
+      } else if (request.method === 'DELETE'){
+        const fsPath = path.join(localFilesystemRoot, normalizeURL(urlPath.slice("/fs".length)));
+        await Deno.remove(fsPath, { recursive: true });
+        response = {
+          status: 204,
+        }
+        continue
+
       }
       
     }

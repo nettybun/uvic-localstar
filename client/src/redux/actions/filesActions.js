@@ -78,10 +78,8 @@ export const updateFileNameDispatch = (file, name) => {
 };
 
 export const deleteFileDispatch = id => {
-    return dispatch => {
-        const idToDelete = deleteFile(id);
-        setTimeout(() => {
-            dispatch(deleteFileSucess(idToDelete));
-        }, Math.random() * 25);
+    return async dispatch => {
+        const idToDelete = await deleteFile(id);
+        dispatch(deleteFileSucess(idToDelete));
     };
 };

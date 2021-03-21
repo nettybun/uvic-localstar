@@ -38,13 +38,12 @@ export const createFile = async file => {
     return file;
 };
 
-export const createFolder = name => {
-    return {
-        id: Date.now(),
-        type: "folder",
-        name,
-        content: [],
-    };
+export const createFolder = async folder => {
+    let response = await fetch(`/fs/${folder.id}`, {
+        method: "POST",
+        body: JSON.stringify(folder),
+    });
+    return folder;
 };
 
 export const updateFolderName = (folder, name) => {
@@ -54,7 +53,10 @@ export const updateFolderName = (folder, name) => {
     };
 };
 
-export const deleteFolder = id => {
+export const deleteFolder = async id => {
+    await fetch(`/fs/${id}`, {
+        method: "DELETE",
+    });
     return id;
 };
 
@@ -70,7 +72,10 @@ export const updateFileName = (file, name) => {
     return { ...file, name };
 };
 
-export const deleteFile = id => {
+export const deleteFile = async id => {
+    await fetch(`/fs/${id}`, {
+        method: "DELETE",
+    });
     return id;
 };
 
