@@ -315,12 +315,32 @@ for await (const request of server) {
       continue;
     }
     if (/^\/fs\/.*/.test(urlPath)) {
-      response = await serveLocal(
-        request,
-        urlPath.slice("/fs".length),
-        localFilesystemRoot,
-      );
-      continue;
+      if(request.method === 'GET'){
+        // read file
+        response = await serveLocal(
+          request,
+          urlPath.slice("/fs".length),
+          localFilesystemRoot,
+        );
+        continue;
+      }else if(request.method === 'POST'){
+        // create file
+        const buf: Uint8Array = await Deno.readAll(request.body);
+        console.log("Request body:",request.body)
+        console.log("Buffer:",buf)
+      }else if(request.method === 'PUT'){
+        const fsPath = path.join(localFilesystemRoot, normalizeURL(urlPath.slice("/fs".length)));
+        // update file
+        const buf: Uint8Array = await Deno.readAll(request.body);
+        let body = JSON.parse(new TextDecoder().decode(buf))
+
+        await Deno.writeTextFile(fsPath,body.content)
+        response = serveJSON(body)
+        continue
+
+        
+      }
+      
     }
 
     if (urlPath === "/") {

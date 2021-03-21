@@ -45,11 +45,10 @@ export const readFileDispatch = id => {
 };
 
 export const updateFileContentDispatch = (file, content) => {
-    return dispatch => {
-        const newFile = updateFileContent(file, content);
-        setTimeout(() => {
-            dispatch(updateFileSucess(newFile));
-        }, Math.random() * 25);
+    return async dispatch => {
+        const newFile = await updateFileContent(file, content);
+
+        dispatch(updateFileSucess(newFile));
     };
 };
 

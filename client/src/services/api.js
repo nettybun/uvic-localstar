@@ -53,7 +53,11 @@ export const deleteFolder = id => {
     return id;
 };
 
-export const updateFileContent = (file, content) => {
+export const updateFileContent = async (file, content) => {
+    let response = await fetch(`/fs/${file.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ ...file, content }),
+    });
     return { ...file, content };
 };
 

@@ -7,4 +7,5 @@ export default {
     apiCallsInProgress: 0,
     files: {},
     currentFile: "",
+    autoSaving: false,
 };
