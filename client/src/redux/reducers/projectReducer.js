@@ -3,6 +3,7 @@ import {
     CREATE_FOLDER_SUCCESS,
     DELETE_FILE_SUCCESS,
     DELETE_FOLDER_SUCCESS,
+    READ_FOLDER_SUCCESS,
     READ_PROJECT_SUCCESS,
     UPDATE_FILE_SUCCESS,
     UPDATE_FOLDER_SUCCESS,
@@ -124,6 +125,47 @@ const projectReducer = (state = initialState.project, action) => {
                             ...item,
                             name: action.folder.name,
                             content: updateFilesystem(item.content),
+                        };
+                    }
+                    return {
+                        ...item,
+                        content: updateFilesystem(item.content),
+                    };
+                });
+            };
+
+            return {
+                ...state,
+                fileSystem: updateFilesystem(newFileSystem),
+            };
+        }
+        case READ_FOLDER_SUCCESS: {
+            console.log(action.fileSystem);
+            let newFolderContent = action.fileSystem.map(item => {
+                if (item.size === "")
+                    return {
+                        id: action.id + item.name,
+                        name: item.name.slice(0, -1),
+                        type: "folder",
+                        content: [],
+                    };
+                else
+                    return {
+                        name: item.name,
+                        id: action.id + item.name,
+                        type: "file",
+                    };
+            });
+            let newFileSystem = state.fileSystem;
+            const updateFilesystem = fileSystem => {
+                return fileSystem.map(item => {
+                    if (item.type === "file") {
+                        return item;
+                    }
+                    if (item.id === action.id) {
+                        return {
+                            ...item,
+                            content: newFolderContent,
                         };
                     }
                     return {

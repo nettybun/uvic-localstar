@@ -7,7 +7,10 @@ import { createPortal } from "preact/compat";
 import { makeSelectFolders, makeSelectFiles } from "../services/selectors";
 import CreateFolderModal from "./CreateFolderModal";
 import RenameFolderModal from "./RenameFolderModal";
-import { deleteFolderDispatch } from "../redux/actions/projectActions";
+import {
+    deleteFolderDispatch,
+    readFolderDispatch,
+} from "../redux/actions/projectActions";
 import { h, Fragment } from "preact";
 
 const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
@@ -40,7 +43,12 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
         }
     }, [currentHover, id]);
 
-    const onCreate = () => {};
+    const onFolderClick = () => {
+        if (isHover) {
+            dispatch(readFolderDispatch(id));
+            setIsOpen(state => !state);
+        }
+    };
 
     return (
         <>
@@ -62,11 +70,7 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
                         <ContextMenuTrigger id={`folder-context-${id}`}>
                             <div
                                 className="w-full cursor-pointer h-7 flex"
-                                onClick={() => {
-                                    if (isHover) {
-                                        setIsOpen(state => !state);
-                                    }
-                                }}
+                                onClick={onFolderClick}
                             >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"

@@ -4,6 +4,7 @@ import {
     UPDATE_PROJECT_SUCCESS,
     UPDATE_FOLDER_SUCCESS,
     DELETE_FOLDER_SUCCESS,
+    READ_FOLDER_SUCCESS,
 } from "./actionTypes";
 import {
     readProject,
@@ -11,6 +12,7 @@ import {
     createFolder,
     deleteFolder,
     updateFolderName,
+    readFolder,
 } from "../../services/api";
 
 const readProjectSuccess = project => {
@@ -46,6 +48,14 @@ const deleteFolderSuccess = id => {
     return {
         type: DELETE_FOLDER_SUCCESS,
         id,
+    };
+};
+
+const readFolderSuccess = (id, fileSystem) => {
+    return {
+        type: READ_FOLDER_SUCCESS,
+        id,
+        fileSystem,
     };
 };
 
@@ -90,5 +100,12 @@ export const deleteFolderDispatch = id => {
         setTimeout(() => {
             dispatch(deleteFolderSuccess(idToDelete));
         }, Math.random() * 25);
+    };
+};
+
+export const readFolderDispatch = id => {
+    return async dispatch => {
+        const folderFileSystem = await readFolder(id);
+        dispatch(readFolderSuccess(id, folderFileSystem));
     };
 };

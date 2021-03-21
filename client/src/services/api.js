@@ -12,6 +12,12 @@ export const readProject = async () => {
     };
 };
 
+export const readFolder = async id => {
+    let response = await fetch(`/fs/${id}`);
+    let fileSystem = await response.json();
+    return fileSystem;
+};
+
 export const readFile = async id => {
     let response = await fetch(`/fs/${id}`);
     let text = await response.text();
@@ -24,13 +30,12 @@ export const readFile = async id => {
     };
 };
 
-export const createFile = name => {
-    return {
-        id: Date.now(),
-        type: "file",
-        name,
-        content: "",
-    };
+export const createFile = async file => {
+    let response = await fetch(`/fs/${file.id}`, {
+        method: "POST",
+        body: JSON.stringify(file),
+    });
+    return file;
 };
 
 export const createFolder = name => {

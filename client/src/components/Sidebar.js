@@ -12,7 +12,7 @@ const Sidebar = () => {
     }, []);
 
     return (
-        <div className="p-2 min-h-full">
+        <div className="p-2 h-full">
             <div
                 // onClick={() => setCounter(state => state + 1)}
                 className="text-left h-full w-full outline-none flex flex-col"

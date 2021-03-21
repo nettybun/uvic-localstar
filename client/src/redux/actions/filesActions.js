@@ -29,11 +29,27 @@ const deleteFileSucess = id => {
 };
 
 export const createFileDispatch = (name, parentID) => {
-    return dispatch => {
-        const file = createFile(name);
-        setTimeout(() => {
-            dispatch(createFileSucess(file, parentID));
-        }, Math.random() * 25);
+    return async dispatch => {
+        const regex = new RegExp("^.*.(nb|sbnb)$");
+        if (!regex.test(name)) {
+            name += ".sbnb";
+        }
+        console.log("Name: ", name);
+
+        let id = name;
+        if (parentID) {
+            id = parentID + name;
+        }
+        console.log("Path: ", id);
+
+        const file = await createFile({
+            id,
+            name,
+            type: "file",
+            content: "# %% [javascript]",
+        });
+
+        dispatch(createFileSucess(file, parentID));
     };
 };
 
