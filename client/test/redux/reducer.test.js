@@ -89,9 +89,9 @@ describe("files reducer", () => {
         expect(
             filesReducer(
                 {
-                    1: {
-                        id: 1,
-                        name: "file1",
+                    "/file/file.md": {
+                        id: "/file/file.md",
+                        name: "file1.md",
                         type: "file",
                         content: ``,
                     },
@@ -99,8 +99,8 @@ describe("files reducer", () => {
                 {
                     type: READ_FILE_SUCCESS,
                     file: {
-                        id: 0,
-                        name: "file0",
+                        id: "/file/file2.md",
+                        name: "file2.md",
                         type: "file",
                         content: ``,
                     },
@@ -108,15 +108,15 @@ describe("files reducer", () => {
                 }
             )
         ).toEqual({
-            0: {
-                id: 0,
-                name: "file0",
+            "/file/file.md": {
+                id: "/file/file.md",
+                name: "file1.md",
                 type: "file",
                 content: ``,
             },
-            1: {
-                id: 1,
-                name: "file1",
+            "/file/file2.md": {
+                id: "/file/file2.md",
+                name: "file2.md",
                 type: "file",
                 content: ``,
             },

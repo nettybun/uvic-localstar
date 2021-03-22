@@ -15,7 +15,7 @@ const filesReducer = (state = initialState.files, action) => {
             };
         case READ_FILE_SUCCESS: {
             let matches = action.file.id.match(/[^/]+$/g);
-            console.log(matches);
+
             let name;
             if (matches) {
                 name = matches[0];

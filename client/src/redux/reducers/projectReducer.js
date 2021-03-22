@@ -92,7 +92,6 @@ const projectReducer = (state = initialState.project, action) => {
                 name: action.name,
             };
         case UPDATE_FILE_SUCCESS: {
-            console.log(action.file);
             let newFileSystem = state.fileSystem;
             const updateFilesystem = fileSystem => {
                 return fileSystem.map(item => {
@@ -141,7 +140,6 @@ const projectReducer = (state = initialState.project, action) => {
             };
         }
         case READ_FOLDER_SUCCESS: {
-            console.log(action.fileSystem);
             let newFolderContent = action.fileSystem.map(item => {
                 if (item.size === "")
                     return {

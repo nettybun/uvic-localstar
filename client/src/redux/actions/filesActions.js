@@ -34,13 +34,11 @@ export const createFileDispatch = (name, parentID) => {
         if (!regex.test(name)) {
             name += ".sbnb";
         }
-        console.log("Name: ", name);
 
         let id = name;
         if (parentID) {
             id = parentID + name;
         }
-        console.log("Path: ", id);
 
         const file = await createFile({
             id,
