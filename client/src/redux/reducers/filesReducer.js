@@ -2,6 +2,7 @@ import {
     CREATE_FILE_SUCCESS,
     DELETE_FILE_SUCCESS,
     READ_FILE_SUCCESS,
+    UPDATE_FILE_NAME_SUCCESS,
     UPDATE_FILE_SUCCESS,
 } from "../actions/actionTypes";
 import initialState from "./initialState";
@@ -26,6 +27,17 @@ const filesReducer = (state = initialState.files, action) => {
                     ...action.file,
                     name,
                 },
+            };
+        }
+        case UPDATE_FILE_NAME_SUCCESS: {
+            let oldFile = state[action.oldID];
+
+            let oldState = state;
+
+            delete oldState[action.oldID];
+            return {
+                ...oldState,
+                [action.file.id]: { ...oldFile, ...action.file },
             };
         }
         case UPDATE_FILE_SUCCESS:

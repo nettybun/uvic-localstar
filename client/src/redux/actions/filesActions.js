@@ -3,6 +3,7 @@ import {
     CREATE_FILE_SUCCESS,
     UPDATE_FILE_SUCCESS,
     DELETE_FILE_SUCCESS,
+    UPDATE_FILE_NAME_SUCCESS,
 } from "./actionTypes";
 import {
     createFile,
@@ -22,6 +23,10 @@ const createFileSucess = (file, parentID) => {
 
 const updateFileSucess = file => {
     return { type: UPDATE_FILE_SUCCESS, file };
+};
+
+const updateFileNameSucess = (file, oldID) => {
+    return { type: UPDATE_FILE_NAME_SUCCESS, file, oldID };
 };
 
 const deleteFileSucess = id => {
@@ -67,11 +72,16 @@ export const updateFileContentDispatch = (file, content) => {
 };
 
 export const updateFileNameDispatch = (file, name) => {
-    return dispatch => {
-        const newFile = updateFileName(file, name);
-        setTimeout(() => {
-            dispatch(updateFileSucess(newFile));
-        }, Math.random() * 25);
+    return async dispatch => {
+        let newName = name;
+        const regex = new RegExp("^.*.(nb|sbnb)$");
+        if (!regex.test(name)) {
+            newName += ".sbnb";
+        }
+
+        const newFile = await updateFileName(file, newName);
+
+        dispatch(updateFileNameSucess(newFile, file.id));
     };
 };
 

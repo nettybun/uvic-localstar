@@ -5,6 +5,7 @@ import {
     DELETE_FOLDER_SUCCESS,
     READ_FOLDER_SUCCESS,
     READ_PROJECT_SUCCESS,
+    UPDATE_FILE_NAME_SUCCESS,
     UPDATE_FILE_SUCCESS,
     UPDATE_FOLDER_SUCCESS,
     UPDATE_PROJECT_SUCCESS,
@@ -91,13 +92,13 @@ const projectReducer = (state = initialState.project, action) => {
                 ...state,
                 name: action.name,
             };
-        case UPDATE_FILE_SUCCESS: {
+        case UPDATE_FILE_NAME_SUCCESS: {
             let newFileSystem = state.fileSystem;
             const updateFilesystem = fileSystem => {
                 return fileSystem.map(item => {
                     if (item.type === "file") {
-                        if (item.id === action.file.id) {
-                            return { ...item, name: action.file.name };
+                        if (item.id === action.oldID) {
+                            return { ...item, ...action.file };
                         }
                         return item;
                     }

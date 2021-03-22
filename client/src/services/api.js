@@ -68,8 +68,13 @@ export const updateFileContent = async (file, content) => {
     return { ...file, content };
 };
 
-export const updateFileName = (file, name) => {
-    return { ...file, name };
+export const updateFileName = async (file, name) => {
+    let response = await fetch(`/fs/${file.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ id: file.id, name }),
+    });
+    const newInfo = await response.json();
+    return { ...file, ...newInfo };
 };
 
 export const deleteFile = async id => {

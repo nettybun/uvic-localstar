@@ -359,6 +359,24 @@ for await (const request of server) {
         }
         continue
 
+      } else if(request.method === 'PATCH'){
+        const fsPath = path.join(localFilesystemRoot, normalizeURL(urlPath.slice("/fs".length)));
+        const buf: Uint8Array = await Deno.readAll(request.body);
+        let body = JSON.parse(new TextDecoder().decode(buf))
+        const matches = urlPath.match('^(.+\/)')
+        let newPath = body.name
+        if(matches){
+          newPath = matches[0] + body.name
+        }
+        const newFsPath = path.join(localFilesystemRoot, normalizeURL(newPath.slice("/fs".length)));
+        await Deno.rename(fsPath, newFsPath)
+        response = serveJSON({
+          id: newPath,
+          name: body.name
+        })
+        continue
+        
+
       }
       
     }
