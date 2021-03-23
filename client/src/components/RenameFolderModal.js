@@ -15,7 +15,7 @@ const RenameFolderModal = ({ showModal, setShowModal, folder }) => {
 
     useEffect(() => {
         setFolderName(folder.name);
-    }, [folder.name]);
+    }, [folder]);
 
     const onChange = ({ target }) => {
         setFolderName(target.value);
@@ -23,7 +23,6 @@ const RenameFolderModal = ({ showModal, setShowModal, folder }) => {
 
     const onClick = () => {
         dispatch(updateFolderNameDispatch(folder, folderName));
-        setFolderName("");
         setShowModal(false);
     };
 

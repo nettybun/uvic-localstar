@@ -16,9 +16,8 @@ Let's see it in action!
 # %% [javascript]
 // You write vanilla Javascript
 const greeting = "Hello world!";
-
 // The last statement in a cell will be displayed if it is not undefined.
-greeting
+greeting  
 # %% [html]
 <div id="my-element" style="background-color: #ddf; padding: 0 1em;">
   <b>You can mix and match different types of cells</b>

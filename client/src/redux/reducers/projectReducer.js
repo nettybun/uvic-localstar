@@ -121,11 +121,25 @@ const projectReducer = (state = initialState.project, action) => {
                     if (item.type === "file") {
                         return item;
                     }
-                    if (item.id === action.folder.id) {
+                    if (item.id === action.oldID) {
                         return {
                             ...item,
-                            name: action.folder.name,
-                            content: updateFilesystem(item.content),
+                            ...action.folder,
+                            content: action.folder.content.map(item => {
+                                if (item.size === "")
+                                    return {
+                                        id: action.folder.id + item.name,
+                                        name: item.name.slice(0, -1),
+                                        type: "folder",
+                                        content: [],
+                                    };
+                                else
+                                    return {
+                                        name: item.name,
+                                        id: action.folder.id + item.name,
+                                        type: "file",
+                                    };
+                            }),
                         };
                     }
                     return {

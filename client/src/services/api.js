@@ -46,11 +46,13 @@ export const createFolder = async folder => {
     return folder;
 };
 
-export const updateFolderName = (folder, name) => {
-    return {
-        ...folder,
-        name,
-    };
+export const updateFolderName = async (folder, name) => {
+    let response = await fetch(`/fs/${folder.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ id: folder.id, name, type: "folder" }),
+    });
+    const newInfo = await response.json();
+    return { ...folder, ...newInfo };
 };
 
 export const deleteFolder = async id => {
@@ -71,7 +73,7 @@ export const updateFileContent = async (file, content) => {
 export const updateFileName = async (file, name) => {
     let response = await fetch(`/fs/${file.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ id: file.id, name }),
+        body: JSON.stringify({ id: file.id, name, type: "file" }),
     });
     const newInfo = await response.json();
     return { ...file, ...newInfo };

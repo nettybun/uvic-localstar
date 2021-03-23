@@ -37,10 +37,11 @@ const createFolderSuccess = (folder, parentID) => {
     };
 };
 
-const updateFolderSuccess = folder => {
+const updateFolderSuccess = (folder, oldID) => {
     return {
         type: UPDATE_FOLDER_SUCCESS,
         folder,
+        oldID,
     };
 };
 
@@ -93,11 +94,18 @@ export const createFolderDispatch = (name, parentID) => {
 };
 
 export const updateFolderNameDispatch = (folder, name) => {
-    return dispatch => {
-        const newFolder = updateFolderName(folder, name);
-        setTimeout(() => {
-            dispatch(updateFolderSuccess(newFolder));
-        }, Math.random() * 25);
+    return async dispatch => {
+        const newFolder = await updateFolderName(
+            { ...folder, id: folder.id.slice(0, -1) },
+            name
+        );
+
+        dispatch(
+            updateFolderSuccess(
+                { ...newFolder, id: newFolder.id + "/" },
+                folder.id
+            )
+        );
     };
 };
 

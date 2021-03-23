@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run --allow-all
 
 // Adapted from https://deno.land/std/http/file_server.ts
-
+import slash from "https://deno.land/x/slash/mod.ts";
 import * as path from "https://deno.land/std/path/mod.ts";
 import { parse } from "https://deno.land/std/flags/mod.ts";
 import { serve } from "https://deno.land/std/http/server.ts";
@@ -136,15 +136,7 @@ async function serveLocal(
   }
   const fileInfo = await Deno.stat(fsPath);
   if (fileInfo.isDirectory) {
-    const entries: Array<{ name: string; size: number | "" }> = [];
-    for await (const entry of Deno.readDir(fsPath)) {
-      const filePath = path.join(fsPath, entry.name);
-      const fileInfo = await Deno.stat(filePath);
-      entries.push({
-        name: `${entry.name}${entry.isDirectory ? "/" : ""}`,
-        size: entry.isFile ? (fileInfo.size ?? 0) : "",
-      });
-    }
+    const entries: Array<{ name: string; size: number | ""; }> = await getFileSystem(fsPath);
     return serveJSON(entries);
   }
   const file = await Deno.open(fsPath);
@@ -160,6 +152,19 @@ async function serveLocal(
     body: file,
     headers,
   };
+}
+
+async function getFileSystem(fsPath: string) {
+  const entries: Array<{ name: string; size: number | ""; }> = [];
+  for await (const entry of Deno.readDir(fsPath)) {
+    const filePath = path.join(fsPath, entry.name);
+    const fileInfo = await Deno.stat(filePath);
+    entries.push({
+      name: `${entry.name}${entry.isDirectory ? "/" : ""}`,
+      size: entry.isFile ? (fileInfo.size ?? 0) : "",
+    });
+  }
+  return entries;
 }
 
 async function serveEmbed(fsPath: string): Promise<Response> {
@@ -362,18 +367,38 @@ for await (const request of server) {
       } else if(request.method === 'PATCH'){
         const fsPath = path.join(localFilesystemRoot, normalizeURL(urlPath.slice("/fs".length)));
         const buf: Uint8Array = await Deno.readAll(request.body);
-        let body = JSON.parse(new TextDecoder().decode(buf))
+        let body = JSON.parse(decoder.decode(buf))
+
         const matches = urlPath.match('^(.+\/)')
         let newPath = body.name
         if(matches){
           newPath = matches[0] + body.name
         }
-        const newFsPath = path.join(localFilesystemRoot, normalizeURL(newPath.slice("/fs".length)));
+        const newID = normalizeURL(newPath.slice("/fs".length))
+        let newFsPath = path.join(localFilesystemRoot, newID );
+        
         await Deno.rename(fsPath, newFsPath)
-        response = serveJSON({
-          id: newPath,
-          name: body.name
-        })
+
+        if(body.type === "file"){
+          response = serveJSON({
+            id:  slash(newID).substring(1),
+            name: body.name,
+          })
+        }else {
+          if (newFsPath.indexOf(localFilesystemRoot) !== 0) {
+            newFsPath = localFilesystemRoot;
+          }
+          const entries: Array<{ name: string; size: number | ""; }> = await getFileSystem(newFsPath);
+          
+          
+          response = serveJSON({
+            id:  slash(newID).substring(1),
+            name: body.name,
+            content: entries
+          })
+        }
+
+       
         continue
         
 

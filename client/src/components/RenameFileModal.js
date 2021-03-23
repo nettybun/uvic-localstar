@@ -23,7 +23,6 @@ const RenameFileModal = ({ showModal, setShowModal, file }) => {
 
     const onClick = () => {
         dispatch(updateFileNameDispatch(file, fileName));
-        setFileName("");
         setShowModal(false);
     };
 
