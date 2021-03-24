@@ -13,6 +13,8 @@ import {
     updateFileName,
 } from "../../services/api";
 
+const hasNotebookFileExtension = name => /\.(?:sb)?nb$/.test(name)
+
 const readFileSucess = file => {
     return { type: READ_FILE_SUCCESS, file };
 };
@@ -35,16 +37,13 @@ const deleteFileSucess = id => {
 
 export const createFileDispatch = (name, parentID) => {
     return async dispatch => {
-        const regex = new RegExp("^.*.(nb|sbnb)$");
-        if (!regex.test(name)) {
+        if (!hasNotebookFileExtension(name)) {
             name += ".sbnb";
         }
-
         let id = name;
         if (parentID) {
             id = parentID + name;
         }
-
         const file = await createFile({
             id,
             name,
@@ -74,13 +73,10 @@ export const updateFileContentDispatch = (file, content) => {
 export const updateFileNameDispatch = (file, name) => {
     return async dispatch => {
         let newName = name;
-        const regex = new RegExp("^.*.(nb|sbnb)$");
-        if (!regex.test(name)) {
+        if (!hasNotebookFileExtension(name)) {
             newName += ".sbnb";
         }
-
         const newFile = await updateFileName(file, newName);
-
         dispatch(updateFileNameSucess(newFile, file.id));
     };
 };

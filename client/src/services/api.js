@@ -1,14 +1,20 @@
-import { project, files } from "./objects";
-
+// TODO: Actually support a *.sbnb-workspace project file lookup
 export const readProject = async () => {
     let response = await fetch("/fs/");
+    if (!response.ok) {
+        return {
+            name: 'No project loaded',
+            authors: [],
+            dateCreated: new Date(0),
+            fileSystem: {}
+        }
+    }
     let fileSystem = await response.json();
-
     return {
         name: "SENG499",
-        authors: ["Dylan", "Michelle", "Grant"],
+        authors: ["Dylan", "Grant"],
         dateCreated: Date.now(),
-        fileSystem, //i guess json doesnt wana do?
+        fileSystem,
     };
 };
 

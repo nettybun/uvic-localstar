@@ -342,26 +342,27 @@ async function fsRouter(request: ServerRequest): Promise<Response> {
         `Unknown request type: ${body.type}`,
       );
       // XXX: Dangerous.
-      const fsPathRenamed = path.join(
+      const fsPathRenamed = slash(path.join(
         localFilesystemRoot,
         normalizeURL(path.join(path.dirname(urlPath), body.name)),
-      );
+      ));
       // XXX: Security check. Don't even try to rename if it fails.
       assert(fsPathRenamed.indexOf(localFilesystemRoot) === 0);
       console.log(`OP: rename: "${fsPath}" to "${fsPathRenamed}"`);
       await Deno.rename(fsPath, fsPathRenamed);
+      // XXX: This doesn't feel great...
+      const relPath = fsPathRenamed.replace(localFilesystemRoot + "/", "");
+      console.log(`PATCH returning "${relPath}" as new file ID`);
       switch (body.type) {
         case "file": {
-          // TODO(Dylan): Why substring(1)?
           return serveJSON({
-            id: fsPathRenamed,
+            id: relPath,
             name: body.name,
           });
         }
         case "folder": {
           return serveJSON({
-            // TODO(Dylan): Why substring(1)?
-            id: fsPathRenamed,
+            id: relPath,
             name: body.name,
             content: await getFileSystem(fsPathRenamed),
           });
