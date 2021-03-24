@@ -1,6 +1,10 @@
 # Client
 node_modules
 build
+# These are here so Preact dev server works...
+client/src/starboard-notebook
+client/src/notebooks
+
 *.log
 size-plugin.json
 

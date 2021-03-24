@@ -98,11 +98,7 @@ const Notebook = () => {
                         onMessage={onMessage}
                         title="Starboard Notebook Sandbox iFrame"
                         id="notebook-iframe"
-                        src={
-                            process.env.NODE_ENV === "production"
-                                ? "/starboard-notebook/index.html"
-                                : "/starboard-dist/starboard-notebook/index.html"
-                        }
+                        src='/starboard-notebook/index.html'
                         frameBorder="0"
                         style={{
                             width: "100%",
