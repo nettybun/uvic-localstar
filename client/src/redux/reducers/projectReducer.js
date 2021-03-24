@@ -3,7 +3,9 @@ import {
     CREATE_FOLDER_SUCCESS,
     DELETE_FILE_SUCCESS,
     DELETE_FOLDER_SUCCESS,
+    READ_FOLDER_SUCCESS,
     READ_PROJECT_SUCCESS,
+    UPDATE_FILE_NAME_SUCCESS,
     UPDATE_FILE_SUCCESS,
     UPDATE_FOLDER_SUCCESS,
     UPDATE_PROJECT_SUCCESS,
@@ -12,8 +14,27 @@ import initialState from "./initialState";
 
 const projectReducer = (state = initialState.project, action) => {
     switch (action.type) {
-        case READ_PROJECT_SUCCESS:
-            return action.project;
+        case READ_PROJECT_SUCCESS: {
+            let fileSystem = action.project.fileSystem.map(item => {
+                if (item.size === "")
+                    return {
+                        id: item.name,
+                        name: item.name.slice(0, -1),
+                        type: "folder",
+                        content: [],
+                    };
+                else
+                    return {
+                        name: item.name,
+                        id: item.name,
+                        type: "file",
+                    };
+            });
+            return {
+                ...action.project,
+                fileSystem,
+            };
+        }
         case DELETE_FOLDER_SUCCESS:
         case DELETE_FILE_SUCCESS: {
             let newFileSystem = state.fileSystem;
@@ -71,13 +92,13 @@ const projectReducer = (state = initialState.project, action) => {
                 ...state,
                 name: action.name,
             };
-        case UPDATE_FILE_SUCCESS: {
+        case UPDATE_FILE_NAME_SUCCESS: {
             let newFileSystem = state.fileSystem;
             const updateFilesystem = fileSystem => {
                 return fileSystem.map(item => {
                     if (item.type === "file") {
-                        if (item.id === action.file.id) {
-                            return { ...item, name: action.file.name };
+                        if (item.id === action.oldID) {
+                            return { ...item, ...action.file };
                         }
                         return item;
                     }
@@ -100,11 +121,65 @@ const projectReducer = (state = initialState.project, action) => {
                     if (item.type === "file") {
                         return item;
                     }
-                    if (item.id === action.folder.id) {
+                    if (item.id === action.oldID) {
                         return {
                             ...item,
-                            name: action.folder.name,
-                            content: updateFilesystem(item.content),
+                            ...action.folder,
+                            content: action.folder.content.map(item => {
+                                if (item.size === "")
+                                    return {
+                                        id: action.folder.id + item.name,
+                                        name: item.name.slice(0, -1),
+                                        type: "folder",
+                                        content: [],
+                                    };
+                                else
+                                    return {
+                                        name: item.name,
+                                        id: action.folder.id + item.name,
+                                        type: "file",
+                                    };
+                            }),
+                        };
+                    }
+                    return {
+                        ...item,
+                        content: updateFilesystem(item.content),
+                    };
+                });
+            };
+
+            return {
+                ...state,
+                fileSystem: updateFilesystem(newFileSystem),
+            };
+        }
+        case READ_FOLDER_SUCCESS: {
+            let newFolderContent = action.fileSystem.map(item => {
+                if (item.size === "")
+                    return {
+                        id: action.id + item.name,
+                        name: item.name.slice(0, -1),
+                        type: "folder",
+                        content: [],
+                    };
+                else
+                    return {
+                        name: item.name,
+                        id: action.id + item.name,
+                        type: "file",
+                    };
+            });
+            let newFileSystem = state.fileSystem;
+            const updateFilesystem = fileSystem => {
+                return fileSystem.map(item => {
+                    if (item.type === "file") {
+                        return item;
+                    }
+                    if (item.id === action.id) {
+                        return {
+                            ...item,
+                            content: newFolderContent,
                         };
                     }
                     return {

@@ -13,6 +13,9 @@
  * https://github.com/denoland/deno/blob/f4980898cd4946a9e5c1d194ab7dbc32de28bf43/cli/standalone.rs#L49-L78
  */
 
+import * as path from "https://deno.land/std/path/mod.ts";
+import { assert } from "https://deno.land/std/testing/asserts.ts";
+
 type BundleMetadataLayout = {
   bundleOffset: number;
   bundleLen: number;
@@ -25,6 +28,22 @@ type BinaryLayout = {
   embedPayload: BundleMetadataLayout | false;
   compilePayload: BundleMetadataLayout | false;
 };
+
+type EmbedHeader = {
+  version: {
+    deno: string;
+    starboard: string;
+  };
+  files: {
+    [path: string]: {
+      offset: number;
+      size: number;
+    };
+  };
+};
+
+type EmbedTreeFileItem = string; // Full path to look up in denoEmbedMetadata
+type EmbedTreeDirItem = { [k: string]: EmbedTreeFileItem | EmbedTreeDirItem };
 
 const MAGIC_TRAILERS = {
   COMPILE: "d3n0l4nd",
@@ -118,5 +137,42 @@ function readBinaryLayout(binary: Deno.File): BinaryLayout {
   };
 }
 
+function buildEmbedDirectoryTree(header: EmbedHeader): EmbedTreeDirItem {
+  const tree: EmbedTreeDirItem = {};
+  // Build the directory tree
+  for (const filePath of Object.keys(header.files)) {
+    const dirs = path.dirname(filePath).split("/");
+    const file = path.basename(filePath);
+    // Walk
+    let w = tree;
+    for (const dir of dirs) {
+      if (dir === "") {
+        continue;
+      }
+      if (!w[dir]) {
+        w[dir] = {};
+      }
+      // This better not already be a file like "cat/" and "cat" together...
+      assert(typeof w[dir] !== "string");
+      w = w[dir] as EmbedTreeDirItem;
+    }
+    // Place file
+    w[file] = filePath;
+  }
+  return tree;
+}
+
+// Enum
+export { MAGIC_TRAILERS };
+// Functions
+export {
+  asHex,
+  buildEmbedDirectoryTree,
+  readBinaryLayout,
+  readTrailer,
+  writeTrailer,
+};
+// Binary utils
 export type { BinaryLayout, BundleMetadataLayout };
-export { asHex, MAGIC_TRAILERS, readBinaryLayout, readTrailer, writeTrailer };
+// Embed payload
+export type { EmbedHeader, EmbedTreeDirItem, EmbedTreeFileItem };

@@ -18,7 +18,7 @@ import {
   writeTrailer,
 } from "../deno/lib/binary_layout.ts";
 
-import type { EmbedHeader } from "../deno/lib/embed_header.ts";
+import type { EmbedHeader } from "../deno/lib/binary_layout.ts";
 
 if (!import.meta.main) {
   throw new Error(`Don't import this`);
@@ -96,7 +96,9 @@ for (const root of rootFolders) {
 const filesToBundle: Record<string, string> = {};
 for (const root of rootFolders) {
   for await (const file of fs.walk(root, { includeDirs: false })) {
-    const embedPath = path.join("/", path.relative(root, file.path));
+    let embedPath = path.join("/", path.relative(root, file.path));
+    // console.log(embedPath,"vs", file.path)
+    embedPath = embedPath.replace(/\\/g, "/");
     if (filesToBundle[embedPath]) {
       console.log(
         color.red(
@@ -141,6 +143,7 @@ console.log(
     bytesToHuman(embedBundleDenoBuffer.length)
   })`,
 );
+
 const embedBundleBuffer = await Deno.readAll(embedBundleDenoBuffer);
 console.log(embedHeader);
 

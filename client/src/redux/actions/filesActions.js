@@ -3,6 +3,7 @@ import {
     CREATE_FILE_SUCCESS,
     UPDATE_FILE_SUCCESS,
     DELETE_FILE_SUCCESS,
+    UPDATE_FILE_NAME_SUCCESS,
 } from "./actionTypes";
 import {
     createFile,
@@ -11,6 +12,8 @@ import {
     updateFileContent,
     updateFileName,
 } from "../../services/api";
+
+const hasNotebookFileExtension = name => /\.(?:sb)?nb$/.test(name)
 
 const readFileSucess = file => {
     return { type: READ_FILE_SUCCESS, file };
@@ -24,53 +27,63 @@ const updateFileSucess = file => {
     return { type: UPDATE_FILE_SUCCESS, file };
 };
 
+const updateFileNameSucess = (file, oldID) => {
+    return { type: UPDATE_FILE_NAME_SUCCESS, file, oldID };
+};
+
 const deleteFileSucess = id => {
     return { type: DELETE_FILE_SUCCESS, id };
 };
 
 export const createFileDispatch = (name, parentID) => {
-    return dispatch => {
-        const file = createFile(name);
-        setTimeout(() => {
-            dispatch(createFileSucess(file, parentID));
-        }, Math.random() * 25);
+    return async dispatch => {
+        if (!hasNotebookFileExtension(name)) {
+            name += ".sbnb";
+        }
+        let id = name;
+        if (parentID) {
+            id = parentID + name;
+        }
+        const file = await createFile({
+            id,
+            name,
+            type: "file",
+            content: "# %% [javascript]",
+        });
+
+        dispatch(createFileSucess(file, parentID));
     };
 };
 
 export const readFileDispatch = id => {
-    return dispatch => {
-        fetch('/notebooks/introduction.sbnb')
-            .then(res => res.text())
-            .then(text => {
-                console.log(`Dispatching with ${text.slice(0, 100)}...`)
-                dispatch(readFileSucess(text));
-            })
+    return async dispatch => {
+        const file = await readFile(id);
+        dispatch(readFileSucess(file));
     };
 };
 
 export const updateFileContentDispatch = (file, content) => {
-    return dispatch => {
-        const newFile = updateFileContent(file, content);
-        setTimeout(() => {
-            dispatch(updateFileSucess(newFile));
-        }, Math.random() * 25);
+    return async dispatch => {
+        const newFile = await updateFileContent(file, content);
+
+        dispatch(updateFileSucess(newFile));
     };
 };
 
 export const updateFileNameDispatch = (file, name) => {
-    return dispatch => {
-        const newFile = updateFileName(file, name);
-        setTimeout(() => {
-            dispatch(updateFileSucess(newFile));
-        }, Math.random() * 25);
+    return async dispatch => {
+        let newName = name;
+        if (!hasNotebookFileExtension(name)) {
+            newName += ".sbnb";
+        }
+        const newFile = await updateFileName(file, newName);
+        dispatch(updateFileNameSucess(newFile, file.id));
     };
 };
 
 export const deleteFileDispatch = id => {
-    return dispatch => {
-        const idToDelete = deleteFile(id);
-        setTimeout(() => {
-            dispatch(deleteFileSucess(idToDelete));
-        }, Math.random() * 25);
+    return async dispatch => {
+        const idToDelete = await deleteFile(id);
+        dispatch(deleteFileSucess(idToDelete));
     };
 };

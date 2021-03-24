@@ -4,6 +4,7 @@ import {
     UPDATE_PROJECT_SUCCESS,
     UPDATE_FOLDER_SUCCESS,
     DELETE_FOLDER_SUCCESS,
+    READ_FOLDER_SUCCESS,
 } from "./actionTypes";
 import {
     readProject,
@@ -11,6 +12,7 @@ import {
     createFolder,
     deleteFolder,
     updateFolderName,
+    readFolder,
 } from "../../services/api";
 
 const readProjectSuccess = project => {
@@ -35,10 +37,11 @@ const createFolderSuccess = (folder, parentID) => {
     };
 };
 
-const updateFolderSuccess = folder => {
+const updateFolderSuccess = (folder, oldID) => {
     return {
         type: UPDATE_FOLDER_SUCCESS,
         folder,
+        oldID,
     };
 };
 
@@ -49,12 +52,19 @@ const deleteFolderSuccess = id => {
     };
 };
 
+const readFolderSuccess = (id, fileSystem) => {
+    return {
+        type: READ_FOLDER_SUCCESS,
+        id,
+        fileSystem,
+    };
+};
+
 export const readProjectDispatch = () => {
-    return dispatch => {
-        let project = readProject();
-        setTimeout(() => {
-            dispatch(readProjectSuccess(project));
-        }, Math.random() * 25);
+    return async dispatch => {
+        let project = await readProject();
+
+        dispatch(readProjectSuccess(project));
     };
 };
 
@@ -68,28 +78,47 @@ export const updateProjectDispatch = name => {
 };
 
 export const createFolderDispatch = (name, parentID) => {
-    return dispatch => {
-        const folder = createFolder(name);
-        setTimeout(() => {
-            dispatch(createFolderSuccess(folder, parentID));
-        }, Math.random() * 25);
+    return async dispatch => {
+        let id = name + "/";
+        if (parentID) {
+            id = parentID + name + "/";
+        }
+        const folder = await createFolder({
+            id,
+            name,
+            type: "folder",
+            content: [],
+        });
+        dispatch(createFolderSuccess(folder, parentID));
     };
 };
 
 export const updateFolderNameDispatch = (folder, name) => {
-    return dispatch => {
-        const newFolder = updateFolderName(folder, name);
-        setTimeout(() => {
-            dispatch(updateFolderSuccess(newFolder));
-        }, Math.random() * 25);
+    return async dispatch => {
+        const newFolder = await updateFolderName(
+            { ...folder, id: folder.id.slice(0, -1) },
+            name
+        );
+
+        dispatch(
+            updateFolderSuccess(
+                { ...newFolder, id: newFolder.id + "/" },
+                folder.id
+            )
+        );
     };
 };
 
 export const deleteFolderDispatch = id => {
-    return dispatch => {
-        const idToDelete = deleteFolder(id);
-        setTimeout(() => {
-            dispatch(deleteFolderSuccess(idToDelete));
-        }, Math.random() * 25);
+    return async dispatch => {
+        const idToDelete = await deleteFolder(id);
+        dispatch(deleteFolderSuccess(idToDelete));
+    };
+};
+
+export const readFolderDispatch = id => {
+    return async dispatch => {
+        const folderFileSystem = await readFolder(id);
+        dispatch(readFolderSuccess(id, folderFileSystem));
     };
 };

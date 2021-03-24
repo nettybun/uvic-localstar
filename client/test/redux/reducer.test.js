@@ -9,6 +9,7 @@ import {
     READ_FILE_SUCCESS,
     READ_PROJECT_SUCCESS,
     SELECT_FILE,
+    UPDATE_FILE_NAME_SUCCESS,
     UPDATE_FILE_SUCCESS,
     UPDATE_FOLDER_SUCCESS,
     UPDATE_PROJECT_SUCCESS,
@@ -89,9 +90,9 @@ describe("files reducer", () => {
         expect(
             filesReducer(
                 {
-                    1: {
-                        id: 1,
-                        name: "file1",
+                    "/file/file.md": {
+                        id: "/file/file.md",
+                        name: "file1.md",
                         type: "file",
                         content: ``,
                     },
@@ -99,8 +100,8 @@ describe("files reducer", () => {
                 {
                     type: READ_FILE_SUCCESS,
                     file: {
-                        id: 0,
-                        name: "file0",
+                        id: "/file/file2.md",
+                        name: "file2.md",
                         type: "file",
                         content: ``,
                     },
@@ -108,15 +109,15 @@ describe("files reducer", () => {
                 }
             )
         ).toEqual({
-            0: {
-                id: 0,
-                name: "file0",
+            "/file/file.md": {
+                id: "/file/file.md",
+                name: "file1.md",
                 type: "file",
                 content: ``,
             },
-            1: {
-                id: 1,
-                name: "file1",
+            "/file/file2.md": {
+                id: "/file/file2.md",
+                name: "file2.md",
                 type: "file",
                 content: ``,
             },
@@ -210,9 +211,36 @@ describe("project reducer", () => {
         expect(
             projectReducer(initialState.project, {
                 type: READ_PROJECT_SUCCESS,
-                project,
+                project: {
+                    ...project,
+                    fileSystem: [
+                        {
+                            name: "folder/",
+                            size: "",
+                        },
+                        {
+                            name: "file",
+                            size: 789,
+                        },
+                    ],
+                },
             })
-        ).toEqual(project);
+        ).toEqual({
+            ...project,
+            fileSystem: [
+                {
+                    name: "folder",
+                    type: "folder",
+                    id: "folder/",
+                    content: [],
+                },
+                {
+                    name: "file",
+                    id: "file",
+                    type: "file",
+                },
+            ],
+        });
     });
     it("should handle DELETE_FILE_SUCCESS", () => {
         //Delete nested file
@@ -644,16 +672,17 @@ describe("project reducer", () => {
             })
         ).toEqual({ ...project, name: "new name" });
     });
-    it("should handle UPDATE_FILE_SUCCESS", () => {
+    it("should handle UPDATE_FILE_NAME_SUCCESS", () => {
         //update file nested
         expect(
             projectReducer(project, {
-                type: UPDATE_FILE_SUCCESS,
+                type: UPDATE_FILE_NAME_SUCCESS,
                 file: {
                     id: 0,
                     name: "new file name",
                     type: "file",
                 },
+                oldID: 0,
             })
         ).toEqual({
             name: "SENG499",
@@ -736,12 +765,13 @@ describe("project reducer", () => {
                     ],
                 },
                 {
-                    type: UPDATE_FILE_SUCCESS,
+                    type: UPDATE_FILE_NAME_SUCCESS,
                     file: {
                         id: 32,
                         name: "new file name",
                         type: "file",
                     },
+                    oldID: 32,
                 }
             )
         ).toEqual({
@@ -792,10 +822,24 @@ describe("project reducer", () => {
             projectReducer(project, {
                 type: UPDATE_FOLDER_SUCCESS,
                 folder: {
-                    id: 4,
+                    id: "4/new folder name/",
                     name: "new folder name",
-                    type: "folder",
+                    content: [
+                        {
+                            name: "file1",
+                            size: 54,
+                        },
+                        {
+                            name: "file2",
+                            size: 54,
+                        },
+                        {
+                            name: "work/",
+                            size: "",
+                        },
+                    ],
                 },
+                oldID: 4,
             })
         ).toEqual({
             name: "SENG499",
@@ -803,31 +847,25 @@ describe("project reducer", () => {
             dateCreated: project.dateCreated,
             fileSystem: [
                 {
-                    id: 4,
+                    id: "4/new folder name/",
                     name: "new folder name",
                     type: "folder",
                     content: [
                         {
-                            id: 0,
+                            id: "4/new folder name/file1",
                             name: "file1",
                             type: "file",
                         },
                         {
-                            id: 1,
+                            id: "4/new folder name/file2",
                             name: "file2",
                             type: "file",
                         },
                         {
                             name: "work",
                             type: "folder",
-                            id: 2,
-                            content: [
-                                {
-                                    id: 3,
-                                    name: "workfile1",
-                                    type: "file",
-                                },
-                            ],
+                            id: "4/new folder name/work/",
+                            content: [],
                         },
                     ],
                 },
@@ -838,10 +876,11 @@ describe("project reducer", () => {
             projectReducer(project, {
                 type: UPDATE_FOLDER_SUCCESS,
                 folder: {
-                    id: 2,
+                    id: "2/new folder name/",
                     name: "new folder name",
-                    type: "folder",
+                    content: [{ name: "workfile1", size: 23 }],
                 },
+                oldID: 2,
             })
         ).toEqual({
             name: "SENG499",
@@ -864,12 +903,12 @@ describe("project reducer", () => {
                             type: "file",
                         },
                         {
-                            id: 2,
+                            id: "2/new folder name/",
                             name: "new folder name",
                             type: "folder",
                             content: [
                                 {
-                                    id: 3,
+                                    id: "2/new folder name/workfile1",
                                     name: "workfile1",
                                     type: "file",
                                 },

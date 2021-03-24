@@ -12,13 +12,22 @@ const App = () => {
     return (
         <Provider store={store}>
             <div id="app">
-                <div className="flex flex-col h-screen">
+                <div className="flex flex-col h-screen overflow-hidden">
                     <Header />
                     <div className="flex flex-grow">
-                        <div style={{ width: 250 }} className=" bg-gray-200">
+                        <div
+                            style={{
+                                minWidth: 250,
+                                height: "calc(100vh - 4rem)",
+                            }}
+                            className=" bg-gray-200 overflow-auto w-1/6"
+                        >
                             <Sidebar />
                         </div>
-                        <div className="flex-grow bg-gray-100">
+                        <div
+                            style={{ height: "calc(100vh - 4rem)" }}
+                            className="flex-grow bg-gray-100 overflow-auto"
+                        >
                             <Notebook />
                         </div>
                     </div>

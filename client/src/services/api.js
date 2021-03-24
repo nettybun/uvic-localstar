@@ -1,51 +1,94 @@
-import { project, files } from "./objects";
-
-export const readProject = () => {
-    return project;
-};
-
-export const readFile = id => {
-    return files[id];
-};
-
-export const createFile = name => {
+// TODO: Actually support a *.sbnb-workspace project file lookup
+export const readProject = async () => {
+    let response = await fetch("/fs/");
+    if (!response.ok) {
+        return {
+            name: 'No project loaded',
+            authors: [],
+            dateCreated: new Date(0),
+            fileSystem: {}
+        }
+    }
+    let fileSystem = await response.json();
     return {
-        id: Date.now(),
+        name: "SENG499",
+        authors: ["Dylan", "Grant"],
+        dateCreated: Date.now(),
+        fileSystem,
+    };
+};
+
+export const readFolder = async id => {
+    let response = await fetch(`/fs/${id}`);
+    let fileSystem = await response.json();
+    return fileSystem;
+};
+
+export const readFile = async id => {
+    let response = await fetch(`/fs/${id}`);
+    let text = await response.text();
+
+    return {
+        id,
+        name: "",
         type: "file",
-        name,
-        content: "",
+        content: text,
     };
 };
 
-export const createFolder = name => {
-    return {
-        id: Date.now(),
-        type: "folder",
-        name,
-        content: [],
-    };
+export const createFile = async file => {
+    let response = await fetch(`/fs/${file.id}`, {
+        method: "POST",
+        body: JSON.stringify(file),
+    });
+    return file;
 };
 
-export const updateFolderName = (folder, name) => {
-    return {
-        ...folder,
-        name,
-    };
+export const createFolder = async folder => {
+    let response = await fetch(`/fs/${folder.id}`, {
+        method: "POST",
+        body: JSON.stringify(folder),
+    });
+    return folder;
 };
 
-export const deleteFolder = id => {
+export const updateFolderName = async (folder, name) => {
+    let response = await fetch(`/fs/${folder.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ id: folder.id, name, type: "folder" }),
+    });
+    const newInfo = await response.json();
+    return { ...folder, ...newInfo };
+};
+
+export const deleteFolder = async id => {
+    await fetch(`/fs/${id}`, {
+        method: "DELETE",
+    });
     return id;
 };
 
-export const updateFileContent = (file, content) => {
+export const updateFileContent = async (file, content) => {
+    let response = await fetch(`/fs/${file.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ ...file, content }),
+    });
     return { ...file, content };
 };
 
-export const updateFileName = (file, name) => {
-    return { ...file, name };
+export const updateFileName = async (file, name) => {
+    let response = await fetch(`/fs/${file.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ id: file.id, name, type: "file" }),
+    });
+    const newInfo = await response.json();
+    return { ...file, ...newInfo };
 };
 
-export const deleteFile = id => {
+export const deleteFile = async id => {
+    await fetch(`/fs/${id}`, {
+        method: "DELETE",
+    });
     return id;
 };
 

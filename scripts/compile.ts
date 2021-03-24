@@ -111,9 +111,7 @@ for (const target of targets) {
   let outputForTarget = output
     .replaceAll("[name]", name)
     .replaceAll("[target]", target);
-  if (target === knownTargets.x86_64_Windows) {
-    outputForTarget += ".exe";
-  }
+
   if (seenOutput.has(outputForTarget)) {
     console.log(color.red(`⚠ Output path collision. Overwriting ${output}`));
   } else {
@@ -126,14 +124,20 @@ for (const target of targets) {
     "deno",
     "compile",
     "--unstable",
+    "--allow-all",
     `--target=${target}`,
     `--output=${outputForTarget}`,
     ...args,
   ];
   console.log(`Run: ${cmd.join(" ")}`);
+
   const process = Deno.run({ cmd });
+ 
   const status = await process.status();
   console.log(`Exit: ${status.code}`);
+  if (target === knownTargets.x86_64_Windows) {
+    outputForTarget += ".exe";
+  }
   if (status.success) {
     try {
       console.log(
