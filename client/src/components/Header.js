@@ -7,6 +7,17 @@ const Header = () => {
     const [displayMenu, setDisplayMenu] = useState(false);
     const [visibleMenu, setVisibleMenu] = useState(false);
     const isAutoSaving = useSelector(state => state.autoSaving);
+    const currentFile = useSelector(state => state.currentFile);
+
+    const [showFileStatus, setShowFileStatus] = useState(false);
+
+    useEffect(() => {
+        if (currentFile === "") {
+            setShowFileStatus(false);
+        } else {
+            setShowFileStatus(true);
+        }
+    }, [currentFile]);
 
     useEffect(() => {
         if (menuOpen) {
@@ -100,41 +111,56 @@ const Header = () => {
                                         Local
                                     </div>
                                 </button>
-                                {isAutoSaving ? (
-                                    <div className="items-center text-gray-300 p-3 ml-2 flex">
-                                        <svg
-                                            className="inline-block fill-current h-5 w-auto px-2 text-gray-300 animate-spin-backwards"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            viewBox="0 0 20 20"
-                                            fill="currentColor"
-                                        >
-                                            <path
-                                                fillRule="evenodd"
-                                                d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
-                                                clipRule="evenodd"
-                                            />
-                                        </svg>
-                                        <div>Saving</div>
+                                <div className="text-sm text-gray-300 ml-2 flex-grow ">
+                                    <div className="justify-center flex ">
+                                        {showFileStatus && (
+                                            <div className="flex flex-col p-3 flex-shrink">
+                                                <div className="items-center my-auto h-5 font-semibold truncate flex-shrink">
+                                                    {currentFile}
+                                                </div>
+
+                                                {isAutoSaving ? (
+                                                    <div className=" my-auto items-center text-gray-300 flex-shrink">
+                                                        <div className="flex justify-center">
+                                                            <svg
+                                                                className="inline-block fill-current h-5 w-auto px-2 text-gray-300 animate-spin-backwards"
+                                                                xmlns="http://www.w3.org/2000/svg"
+                                                                viewBox="0 0 20 20"
+                                                                fill="currentColor"
+                                                            >
+                                                                <path
+                                                                    fillRule="evenodd"
+                                                                    d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+                                                                    clipRule="evenodd"
+                                                                />
+                                                            </svg>
+                                                            <div>Saving</div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="my-auto items-center text-gray-300 flex-shrink">
+                                                        <div className="flex justify-center">
+                                                            <svg
+                                                                className="inline-block fill-current h-5 w-auto px-2 text-gray-300"
+                                                                xmlns="http://www.w3.org/2000/svg"
+                                                                viewBox="0 0 20 20"
+                                                                fill="currentColor"
+                                                            >
+                                                                <path
+                                                                    fillRule="evenodd"
+                                                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                                                    clipRule="evenodd"
+                                                                />
+                                                            </svg>
+                                                            <div>Saved</div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                ) : (
-                                    <div className="items-center text-gray-300 p-3 ml-2 flex">
-                                        <svg
-                                            className="inline-block fill-current h-5 w-auto px-2 text-gray-300"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            viewBox="0 0 20 20"
-                                            fill="currentColor"
-                                        >
-                                            <path
-                                                fillRule="evenodd"
-                                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                                clipRule="evenodd"
-                                            />
-                                        </svg>
-                                        <div>Saved</div>
-                                    </div>
-                                )}
+                                </div>
                             </div>
-                            <div className=" mx-6 py-2 opacity-20" />
                             <div className="hidden sm:block ">
                                 <div className="flex space-x-4 items-center">
                                     <a
