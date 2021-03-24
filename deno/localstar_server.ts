@@ -293,8 +293,9 @@ async function readBodyJSON(request: ServerRequest): Promise<unknown> {
 
 async function fsRouter(request: ServerRequest): Promise<Response> {
   assert(request.url.startsWith("/fs/"));
-  const urlPath = slash(normalizeURL(request.url.slice("/fs".length)));
-  let fsPath = path.join(localFilesystemRoot, urlPath);
+  const urlPath = normalizeURL(request.url.slice("/fs".length));
+  // Had to move the slash() here as path.join auto reshapes path for windows
+  let fsPath = slash(path.join(localFilesystemRoot, urlPath)); 
   // Security check in case path joining changes beyond the fsRoot
   if (fsPath.indexOf(localFilesystemRoot) !== 0) {
     fsPath = localFilesystemRoot;
