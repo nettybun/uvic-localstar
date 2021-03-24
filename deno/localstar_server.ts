@@ -1,28 +1,38 @@
 #!/usr/bin/env -S deno run --allow-all
 
-// Adapted from https://deno.land/std/http/file_server.ts
-import slash from "https://deno.land/x/slash/mod.ts";
+// Originally adapted from https://deno.land/std/http/file_server.ts
+
 import * as path from "https://deno.land/std/path/mod.ts";
 import { parse } from "https://deno.land/std/flags/mod.ts";
 import { serve } from "https://deno.land/std/http/server.ts";
 import { assert } from "https://deno.land/std/testing/asserts.ts";
-import { open } from "https://deno.land/x/opener/mod.ts";
 
-import { asHex, readBinaryLayout } from "./lib/binary_layout.ts";
+import slash from "https://deno.land/x/slash/mod.ts";
+import { open as opener } from "https://deno.land/x/opener/mod.ts";
+
+import {
+  asHex,
+  buildEmbedDirectoryTree,
+  readBinaryLayout,
+} from "./lib/binary_layout.ts";
+
+import type { EmbedHeader, EmbedTreeDirItem } from "./lib/binary_layout.ts";
 
 import type {
   Response,
   ServerRequest,
 } from "https://deno.land/std/http/server.ts";
 
-import type { EmbedHeader } from "./lib/embed_header.ts";
-
 interface ServerArgs {
   _: string[];
-  host?: string;
-  port?: number;
-  cors?: boolean;
+  host: string;
+  port: number;
+  cors: boolean;
+  open: boolean;
 }
+
+// Doesn't support 0.0.0.0 for listening on all interfaces
+const isWindows = Deno.build.os === "windows";
 
 // TODO(*): Possibly use oak_server/media_types repo. It's huge at 178kb of MIME
 // data, but honestly, Deno just loaded 18MB of ICU dates, languages, etc. It's
@@ -49,18 +59,10 @@ const decoder = new TextDecoder();
 // This file is never closed. The OS closes it on process exit
 const denoBinary = Deno.openSync(Deno.execPath(), { read: true });
 const denoLayout = readBinaryLayout(denoBinary);
-const denoEmbedMetadata: EmbedHeader = {
-  version: {
-    deno: "No embed",
-    starboard: "No embed",
-  },
-  files: {},
-};
 const denoEmbedCache = new Map<string, Uint8Array>();
 
-type FileItem = string; // Full path to look up in denoEmbedMetadata
-type DirItem = { [k: string]: FileItem | DirItem };
-const denoEmbedTree: DirItem = {};
+let denoEmbedMetadata: EmbedHeader | undefined;
+let denoEmbedTree: EmbedTreeDirItem | undefined;
 
 if (denoLayout.compilePayload === false) {
   console.log("Running outside of a Deno executable");
@@ -71,36 +73,24 @@ if (denoLayout.embedPayload === false) {
   console.log("Found an embedded filesystem");
   const { metadataOffset, metadataLen } = denoLayout.embedPayload;
   const metadataBuf = await loadFromBinary(metadataOffset, metadataLen);
-  const metadata = JSON.parse(decoder.decode(metadataBuf));
+  const metadata = JSON.parse(decoder.decode(metadataBuf)) as EmbedHeader;
   console.log("Metadata:", metadata);
-  Object.assign(denoEmbedMetadata, metadata);
-
-  // Build the directory tree
-  for (const filePath of Object.keys(denoEmbedMetadata.files)) {
-    const dirs = path.dirname(filePath).split("/");
-    const file = path.basename(filePath);
-    // Walk
-    let w = denoEmbedTree;
-    for (const dir of dirs) {
-      if (dir === "") {
-        continue;
-      }
-      if (!w[dir]) {
-        w[dir] = {};
-      }
-      // This better not already be a file like "cat/" and "cat" together...
-      assert(typeof w[dir] !== "string");
-      w = w[dir] as DirItem;
-    }
-    // Place file
-    w[file] = filePath;
-  }
+  denoEmbedMetadata = metadata;
+  denoEmbedTree = buildEmbedDirectoryTree(denoEmbedMetadata);
   console.log("DirTree:", denoEmbedTree);
 }
 
-const serverArgs = parse(Deno.args) as ServerArgs;
+const serverArgs = parse(Deno.args, {
+  boolean: ["cors", "open"],
+  default: {
+    host: isWindows ? "localhost" : "0.0.0.0",
+    port: 4507,
+    open: true,
+    cors: true,
+  },
+}) as ServerArgs;
 // Path on the OS to serve files from
-const localFilesystemRoot = path.resolve(serverArgs._[0] ?? "");
+const localFilesystemRoot = slash(path.resolve(serverArgs._[0] ?? ""));
 // Path on the OS to serve embeds from when `denoLayout.embedPayload === false`
 const embedFilesystemRoot = localFilesystemRoot;
 
@@ -127,16 +117,11 @@ async function loadFromBinary(
 async function serveLocal(
   request: ServerRequest,
   fsPath: string,
-  fsRoot: string,
 ): Promise<Response> {
-  fsPath = path.join(fsRoot, normalizeURL(fsPath));
-  // Security check in case path joining changes beyond the fsRoot
-  if (fsPath.indexOf(fsRoot) !== 0) {
-    fsPath = fsRoot;
-  }
   const fileInfo = await Deno.stat(fsPath);
   if (fileInfo.isDirectory) {
-    const entries: Array<{ name: string; size: number | ""; }> = await getFileSystem(fsPath);
+    const entries: Array<{ name: string; size: number | "" }> =
+      await getFileSystem(fsPath);
     return serveJSON(entries);
   }
   const file = await Deno.open(fsPath);
@@ -155,7 +140,7 @@ async function serveLocal(
 }
 
 async function getFileSystem(fsPath: string) {
-  const entries: Array<{ name: string; size: number | ""; }> = [];
+  const entries: Array<{ name: string; size: number | "" }> = [];
   for await (const entry of Deno.readDir(fsPath)) {
     const filePath = path.join(fsPath, entry.name);
     const fileInfo = await Deno.stat(filePath);
@@ -168,6 +153,7 @@ async function getFileSystem(fsPath: string) {
 }
 
 async function serveEmbed(fsPath: string): Promise<Response> {
+  assert(denoEmbedMetadata && denoEmbedTree);
   const embedInfo = denoEmbedMetadata.files[fsPath];
   // Stat:
   if (!embedInfo) {
@@ -179,7 +165,7 @@ async function serveEmbed(fsPath: string): Promise<Response> {
       if (dir == "") {
         continue;
       }
-      w = w[dir] as DirItem;
+      w = w[dir] as EmbedTreeDirItem;
       if (typeof w === "string" || typeof w === "undefined") {
         // String if asking for a file in a file like a/b/c/index.html/d/
         throw new Deno.errors.NotFound();
@@ -256,7 +242,7 @@ function serveFallback(e: Error): Response {
 function serverLog(req: ServerRequest, res: Response): void {
   const d = new Date().toISOString();
   const dateFmt = `[${d.slice(0, 10)} ${d.slice(11, 19)}]`;
-  const s = `${dateFmt} "${req.method} ${req.url} ${req.proto}" ${res.status}`;
+  const s = `${dateFmt} ${req.method} "${req.url}" ${req.proto} ${res.status}`;
   console.log(s);
 }
 
@@ -300,128 +286,136 @@ function normalizeURL(url: string): string {
   return startOfParams > -1 ? normalized.slice(0, startOfParams) : normalized;
 }
 
-const host = serverArgs.host ?? Deno.build.os === "windows" ? "localhost" : "0.0.0.0";
-const port = serverArgs.port ?? 4507;
-const cors = serverArgs.cors;
+async function readBodyJSON(request: ServerRequest): Promise<unknown> {
+  const buf = await Deno.readAll(request.body);
+  return JSON.parse(decoder.decode(buf));
+}
 
-const server = serve({
-  hostname: host,
-  port,
-});
+async function fsRouter(request: ServerRequest): Promise<Response> {
+  assert(request.url.startsWith("/fs/"));
+  const urlPath = slash(normalizeURL(request.url.slice("/fs".length)));
+  let fsPath = path.join(localFilesystemRoot, urlPath);
+  // Security check in case path joining changes beyond the fsRoot
+  if (fsPath.indexOf(localFilesystemRoot) !== 0) {
+    fsPath = localFilesystemRoot;
+  }
+  switch (request.method) {
+    case "GET": {
+      return await serveLocal(request, fsPath);
+    }
+    case "POST":
+    case "PUT": {
+      const body = await readBodyJSON(request) as {
+        type: "file" | "folder";
+        content: string;
+      };
+      assert(body.content, "No content given");
+      // TODO: Use JSON schema validation
+      assert(
+        body.type === "file" || body.type === "folder",
+        `Unknown request type: ${body.type}`,
+      );
+      switch (body.type) {
+        case "file": {
+          console.log(`OP: writeTextFile: "${fsPath}"`);
+          await Deno.writeTextFile(fsPath, body.content);
+          break;
+        }
+        case "folder": {
+          assert(request.method !== "PUT", `Can't HTTP PUT for a folder`);
+          console.log(`OP: mkDir: "${fsPath}"`);
+          await Deno.mkdir(fsPath, { recursive: true });
+          break;
+        }
+      }
+      return { status: 200 };
+    }
+    case "PATCH": {
+      const body = await readBodyJSON(request) as {
+        type: "file" | "folder";
+        name: string;
+      };
+      assert(body.name, "No name given");
+      // TODO: Use JSON schema validation
+      assert(
+        body.type === "file" || body.type === "folder",
+        `Unknown request type: ${body.type}`,
+      );
+      // XXX: Dangerous.
+      const fsPathRenamed = path.join(
+        localFilesystemRoot,
+        normalizeURL(path.join(path.dirname(urlPath), body.name)),
+      );
+      // XXX: Security check. Don't even try to rename if it fails.
+      assert(fsPathRenamed.indexOf(localFilesystemRoot) === 0);
+      console.log(`OP: rename: "${fsPath}" to "${fsPathRenamed}"`);
+      await Deno.rename(fsPath, fsPathRenamed);
+      switch (body.type) {
+        case "file": {
+          // TODO(Dylan): Why substring(1)?
+          return serveJSON({
+            id: fsPathRenamed,
+            name: body.name,
+          });
+        }
+        case "folder": {
+          return serveJSON({
+            // TODO(Dylan): Why substring(1)?
+            id: fsPathRenamed,
+            name: body.name,
+            content: await getFileSystem(fsPathRenamed),
+          });
+        }
+      }
+      // BUG: Deno-ts says "Unreachable code detected" but then Deno-lint
+      // requires it...
+      break;
+    }
+    case "DELETE": {
+      console.log(`OP: remove: "${fsPath}"`);
+      await Deno.remove(fsPath, { recursive: true });
+      return { status: 204 };
+    }
+  }
+  throw new URIError(`No route for HTTP method: ${request.method}`);
+}
+
+const { host, port, cors, open } = serverArgs;
+
+const server = serve({ hostname: host, port });
 console.log(`Starboard on http://${host}:${port}/`);
-await open(`http://${host}:${port}/`)
+
+// Don't await this. Let the server start while the browser is busy opening
+if (open) opener(`http://${host}:${port}/`);
 
 for await (const request of server) {
   let response: Response;
   try {
     let { url: urlPath } = request;
     if (/^\/version\/?$/.test(urlPath)) {
-      response = serveJSON(denoEmbedMetadata.version);
+      response = serveJSON(denoEmbedMetadata?.version ?? "N/A");
       continue;
     }
     if (/^\/fs\/.*/.test(urlPath)) {
-      if(request.method === 'GET'){
-        // read file
-        response = await serveLocal(
-          request,
-          urlPath.slice("/fs".length),
-          localFilesystemRoot,
-        );
-        continue;
-      }else if(request.method === 'POST'){
-        // create file
-        const fsPath = path.join(localFilesystemRoot, normalizeURL(urlPath.slice("/fs".length)));
-        const buf: Uint8Array = await Deno.readAll(request.body);
-        let body = JSON.parse(new TextDecoder().decode(buf))
-        if(body.type === "file"){
-          await Deno.writeTextFile(fsPath,body.content)
-          response = serveJSON(body)
-          continue
-        }else if(body.type === "folder"){
-          await Deno.mkdir(fsPath, { recursive: true })
-          response = serveJSON(body)
-          continue
-        }
-        
-        
-      }else if(request.method === 'PUT'){
-        
-        // update file, same as 'POST' for now. But keep them seperate for a little while longer?
-        const fsPath = path.join(localFilesystemRoot, normalizeURL(urlPath.slice("/fs".length)));
-        const buf: Uint8Array = await Deno.readAll(request.body);
-        let body = JSON.parse(new TextDecoder().decode(buf))
-
-        await Deno.writeTextFile(fsPath,body.content)
-        response = serveJSON(body)
-        continue
-
-        
-      } else if (request.method === 'DELETE'){
-        const fsPath = path.join(localFilesystemRoot, normalizeURL(urlPath.slice("/fs".length)));
-        await Deno.remove(fsPath, { recursive: true });
-        response = {
-          status: 204,
-        }
-        continue
-
-      } else if(request.method === 'PATCH'){
-        const fsPath = path.join(localFilesystemRoot, normalizeURL(urlPath.slice("/fs".length)));
-        const buf: Uint8Array = await Deno.readAll(request.body);
-        let body = JSON.parse(decoder.decode(buf))
-
-        const matches = urlPath.match('^(.+\/)')
-        let newPath = body.name
-        if(matches){
-          newPath = matches[0] + body.name
-        }
-        const newID = normalizeURL(newPath.slice("/fs".length))
-        let newFsPath = path.join(localFilesystemRoot, newID );
-        
-        await Deno.rename(fsPath, newFsPath)
-
-        if(body.type === "file"){
-          response = serveJSON({
-            id:  slash(newID).substring(1),
-            name: body.name,
-          })
-        }else {
-          if (newFsPath.indexOf(localFilesystemRoot) !== 0) {
-            newFsPath = localFilesystemRoot;
-          }
-          const entries: Array<{ name: string; size: number | ""; }> = await getFileSystem(newFsPath);
-          
-          
-          response = serveJSON({
-            id:  slash(newID).substring(1),
-            name: body.name,
-            content: entries
-          })
-        }
-
-       
-        continue
-        
-
-      }
-      
+      response = await fsRouter(request);
+      continue;
     }
-
     if (urlPath === "/") {
       urlPath = "/index.html";
     }
+    // I actually do this _after_ the above check, so visiting // won't land on
+    // the index.html
+    urlPath = slash(normalizeURL(urlPath));
 
     if (denoLayout.embedPayload === false) {
-      console.log("No embed filesystem; passing through to local folder");
-      response = await serveLocal(
-        request,
-        urlPath,
-        embedFilesystemRoot,
-      );
+      const fsPath = path.join(embedFilesystemRoot, urlPath);
+      console.log(`No embed filesystem; passing through to "${fsPath}"`);
+      response = await serveLocal(request, fsPath);
     } else {
       response = await serveEmbed(urlPath);
     }
   } catch (e) {
-    console.error(e.message);
+    console.error("Error in middleware; serving error page:", e);
     response = serveFallback(e);
   } finally {
     try {
@@ -429,7 +423,7 @@ for await (const request of server) {
       serverLog(request, response!);
       await request.respond(response!);
     } catch (e) {
-      console.error(e.message);
+      console.error("Error responding; dropping connection:", e);
     }
   }
 }
