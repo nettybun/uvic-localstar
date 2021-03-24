@@ -367,10 +367,10 @@ async function fsRouter(request: ServerRequest): Promise<Response> {
             content: await getFileSystem(fsPathRenamed),
           });
         }
+        default:
+          break;
       }
-      // BUG: Deno-ts says "Unreachable code detected" but then Deno-lint
-      // requires it...
-      break;
+      
     }
     case "DELETE": {
       console.log(`OP: remove: "${fsPath}"`);
