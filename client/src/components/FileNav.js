@@ -3,7 +3,12 @@ import Folder from "./Folder";
 import { useDispatch, useSelector } from "react-redux";
 import CreateFileModal from "./CreateFileModal";
 import CreateFolderModal from "./CreateFolderModal";
-import { ContextMenu, ContextMenuTrigger, MenuItem } from "preact-context-menu";
+import {
+    ContextMenu,
+    ContextMenuTrigger,
+    MenuItem,
+    openContextMenu,
+} from "preact-context-menu";
 import { createPortal } from "preact/compat";
 import { makeSelectFiles, makeSelectFolders } from "../services/selectors";
 import File from "./File";
@@ -53,6 +58,26 @@ const FileNav = () => {
                             parentID={null}
                         />
                     ))}
+                    <button
+                        onClick={() => openContextMenu(`file-nav`)}
+                        type="button"
+                        className="w-full outline-none focus:outline-none  h-9 p-1  hover:bg-gray-500  hover:bg-opacity-20 transition-all rounded"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            className="h-5 mx-auto"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                            />
+                        </svg>
+                    </button>
                 </div>
             </ContextMenuTrigger>
             <ContextMenu id={`file-nav`}>
