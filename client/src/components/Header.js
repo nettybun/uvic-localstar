@@ -101,7 +101,7 @@ const Header = () => {
                                     </div>
                                 </button>
                                 {isAutoSaving ? (
-                                    <div className="items-center text-gray-300 p-3 ml-10 flex">
+                                    <div className="items-center text-gray-300 p-3 ml-2 flex">
                                         <svg
                                             className="inline-block fill-current h-5 w-auto px-2 text-gray-300 animate-spin-backwards"
                                             xmlns="http://www.w3.org/2000/svg"
@@ -117,7 +117,7 @@ const Header = () => {
                                         <div>Saving</div>
                                     </div>
                                 ) : (
-                                    <div className="items-center text-gray-300 p-3 ml-10 flex">
+                                    <div className="items-center text-gray-300 p-3 ml-2 flex">
                                         <svg
                                             className="inline-block fill-current h-5 w-auto px-2 text-gray-300"
                                             xmlns="http://www.w3.org/2000/svg"

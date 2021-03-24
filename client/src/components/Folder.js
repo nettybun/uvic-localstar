@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 import File from "./File";
-import { ContextMenu, ContextMenuTrigger, MenuItem } from "preact-context-menu";
+import {
+    ContextMenu,
+    ContextMenuTrigger,
+    MenuItem,
+    openContextMenu,
+} from "preact-context-menu";
 import { useDispatch, useSelector } from "react-redux";
 import CreateFileModal from "./CreateFileModal";
 import { createPortal } from "preact/compat";
@@ -26,6 +31,7 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
     const selectFolders = useMemo(makeSelectFolders, []);
     const folders = useSelector(state => selectFolders(state, content ?? []));
     const files = useSelector(state => selectFiles(state, content ?? []));
+    const [isButtonHover, setIsButtonHover] = useState(false);
 
     useEffect(() => {
         setContainer(document.getElementById("modals"));
@@ -44,7 +50,7 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
     }, [currentHover, id]);
 
     const onFolderClick = () => {
-        if (isHover) {
+        if (isHover && !isButtonHover) {
             dispatch(readFolderDispatch(id));
             setIsOpen(state => !state);
         }
@@ -57,7 +63,7 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
                     <div
                         className={`${
                             isHover ? "bg-gray-500 bg-opacity-10" : ""
-                        } p-1  my-1 rounded-md h-auto transition-all`}
+                        } p-1  my-1 rounded-md transition-all`}
                         onMouseEnter={() =>
                             setCurrentHover(state => [id, ...state])
                         }
@@ -103,9 +109,33 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
                                         d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
                                     />
                                 </svg>
-                                <div className="inline-block flex-grow truncate  font-semibold my-auto">
+                                <div className="inline-block flex-grow text-sm truncate  my-auto">
                                     {name}
                                 </div>
+                                <button
+                                    onMouseEnter={() => setIsButtonHover(true)}
+                                    onMouseLeave={() => setIsButtonHover(false)}
+                                    onClick={() =>
+                                        openContextMenu(`folder-context-${id}`)
+                                    }
+                                    type="button"
+                                    className="p-1 focus:outline-none rounded hover:bg-gray-500 hover:bg-opacity-10"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        className="h-5 "
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"
+                                        />
+                                    </svg>
+                                </button>
                             </div>
                         </ContextMenuTrigger>
                         <div

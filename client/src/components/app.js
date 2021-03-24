@@ -16,8 +16,11 @@ const App = () => {
                     <Header />
                     <div className="flex flex-grow">
                         <div
-                            style={{ width: 250, height: "calc(100vh - 4rem)" }}
-                            className=" bg-gray-200 overflow-auto"
+                            style={{
+                                minWidth: 250,
+                                height: "calc(100vh - 4rem)",
+                            }}
+                            className=" bg-gray-200 overflow-auto w-1/6"
                         >
                             <Sidebar />
                         </div>

@@ -1,7 +1,12 @@
 import { useEffect, useState } from "preact/hooks";
 import { h, Fragment } from "preact";
 import { useDispatch } from "react-redux";
-import { ContextMenu, ContextMenuTrigger, MenuItem } from "preact-context-menu";
+import {
+    ContextMenu,
+    ContextMenuTrigger,
+    MenuItem,
+    openContextMenu,
+} from "preact-context-menu";
 import { SELECT_FILE } from "../redux/actions/actionTypes";
 import { deleteFileDispatch } from "../redux/actions/filesActions";
 import RenameFileModal from "./RenameFileModal";
@@ -12,12 +17,16 @@ const File = ({ file, currentHover, setCurrentHover }) => {
     const [showRenameFileModal, setShowRenameFileModal] = useState(false);
     const [container, setContainer] = useState(null);
 
+    const [isButtonHover, setIsButtonHover] = useState(false);
+
     useEffect(() => {
         setContainer(document.getElementById("modals"));
     }, []);
 
     const onClick = () => {
-        dispatch({ type: SELECT_FILE, fileName: `${file.id}` });
+        if (!isButtonHover) {
+            dispatch({ type: SELECT_FILE, fileName: `${file.id}` });
+        }
     };
 
     const onDelete = () => {
@@ -40,7 +49,7 @@ const File = ({ file, currentHover, setCurrentHover }) => {
 
     return (
         <>
-            <ContextMenuTrigger id={`folder-context-${file.id}`}>
+            <ContextMenuTrigger id={`file-context-${file.id}`}>
                 <div
                     onClick={onClick}
                     onMouseEnter={() =>
@@ -51,14 +60,14 @@ const File = ({ file, currentHover, setCurrentHover }) => {
                             state.filter(itemID => itemID !== file.id)
                         )
                     }
-                    className="w-full py-2 px-1 hover:bg-gray-500 hover:bg-opacity-10 my-1 rounded-md flex cursor-pointer transition-all "
+                    className="w-full p-1 hover:bg-gray-500 hover:bg-opacity-10 my-1 h-9 rounded-md flex cursor-pointer transition-all "
                 >
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
-                        className="h-5 ml-1 mr-2 inline-block flex-shrink-0"
+                        className="h-5 ml-1 mr-2 inline-block flex-shrink-0 my-auto"
                     >
                         <path
                             strokeLinecap="round"
@@ -67,13 +76,37 @@ const File = ({ file, currentHover, setCurrentHover }) => {
                             d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
                         />
                     </svg>
-                    <div className="inline-block align-middle font-medium flex-grow truncate">
+                    <div className="inline-block text-sm flex-grow truncate my-auto">
                         {file.name}
                     </div>
+                    <button
+                        onClick={() =>
+                            openContextMenu(`file-context-${file.id}`)
+                        }
+                        onMouseEnter={() => setIsButtonHover(true)}
+                        onMouseLeave={() => setIsButtonHover(false)}
+                        type="button"
+                        className="p-1 focus:outline-none rounded hover:bg-gray-500 hover:bg-opacity-10"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            className="h-5 "
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"
+                            />
+                        </svg>
+                    </button>
                 </div>
             </ContextMenuTrigger>
 
-            <ContextMenu id={`folder-context-${file.id}`}>
+            <ContextMenu id={`file-context-${file.id}`}>
                 <div className="bg-white rounded-md p-1 shadow">
                     <MenuItem data={{ foo: "bar" }}>
                         <div
