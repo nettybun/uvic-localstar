@@ -29,10 +29,10 @@ const ProjectInfo = () => {
         <div className="w-full py-3 px-1">
             <ProjectTitle name={project.name} />
             <div>
-                <div className="uppercase py-1 font-light text-xs text-gray-500 truncate">
+                <div className="uppercase py-1 font-light text-xs text-gray-700 truncate">
                     Created: {date}
                 </div>
-                <div className="py-1 font-light text-xs text-gray-500 truncate">
+                <div className="py-1 font-light text-xs text-gray-700 truncate">
                     <span className="uppercase">Authors:</span>{" "}
                     {project.authors.join(", ")}
                 </div>

@@ -113,6 +113,8 @@ const Folder = ({ name, content, id, currentHover, setCurrentHover }) => {
                                     {name}
                                 </div>
                                 <button
+                                    title="Folder Options"
+                                    aria-label="Folder Options"
                                     onMouseEnter={() => setIsButtonHover(true)}
                                     onMouseLeave={() => setIsButtonHover(false)}
                                     onClick={() =>
