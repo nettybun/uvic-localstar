@@ -59,6 +59,8 @@ const FileNav = () => {
                         />
                     ))}
                     <button
+                        title="New File/Folder"
+                        aria-label="New File/Folder"
                         onClick={() => openContextMenu(`file-nav`)}
                         type="button"
                         className="w-full outline-none focus:outline-none  h-9 p-1  hover:bg-gray-500  hover:bg-opacity-20 transition-all rounded"

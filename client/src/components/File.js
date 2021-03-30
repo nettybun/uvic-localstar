@@ -80,6 +80,8 @@ const File = ({ file, currentHover, setCurrentHover }) => {
                         {file.name}
                     </div>
                     <button
+                        title="File Options"
+                        aria-label="File Options"
                         onClick={() =>
                             openContextMenu(`file-context-${file.id}`)
                         }

@@ -14,7 +14,7 @@ const App = () => {
             <div id="app">
                 <div className="flex flex-col h-screen overflow-hidden">
                     <Header />
-                    <div className="flex flex-grow">
+                    <main className="flex flex-grow">
                         <div
                             style={{
                                 minWidth: 250,
@@ -30,7 +30,7 @@ const App = () => {
                         >
                             <Notebook />
                         </div>
-                    </div>
+                    </main>
                 </div>
             </div>
             <div id="modals"></div>

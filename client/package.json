@@ -6,7 +6,7 @@
   "scripts": {
     "starboard": "deno run -A --unstable ../scripts/starboard.ts",
     "serve": "sirv build --port 8080 --cors --single",
-    "build": "preact build --no-prerender",
+    "build": "preact build --no-prerender --no-sw --no-esm",
     "dev": "preact watch",
     "lint": "eslint src",
     "test": "jest --config ./jest.config.js"
