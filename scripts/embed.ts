@@ -158,9 +158,7 @@ for (const binaryPath of binaries) {
     continue;
   }
   if (layoutStart.embedPayload !== false) {
-    console.log(`Skipping binary that already has an embed filesystem`);
-    binary.close();
-    continue;
+    console.log(color.yellow(`⚠ Replacing embed filesystem`));
   }
 
   // Load the compile payload in memory
