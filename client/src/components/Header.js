@@ -87,11 +87,11 @@ const Header = () => {
                             </div>
                         </div>
                         <div className=" flex items-center justify-center sm:items-stretch sm:justify-start w-full">
-                            <div className="hidden sm:flex">
+                            <div className="hidden sm:block p-2">
                                 <button
                                     type="button"
                                     onClick={() => window.location.reload()}
-                                    className="flex-shrink-0 items-center flex hover:bg-gray-700 p-2 rounded-md cursor-pointer transition-colors"
+                                    className="flex items-center hover:bg-gray-700 p-2 rounded-md cursor-pointer transition-colors"
                                 >
                                     <svg
                                         className="inline-block fill-current h-8 w-auto text-white"
